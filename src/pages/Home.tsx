@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ArrowRight } from 'lucide-react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
 import { ProductCard } from '../components/ProductCard';
 import { QuickViewModal } from '../components/QuickViewModal';
 import { ScrollyHero } from '../components/hero/ScrollyHero';
@@ -169,7 +173,35 @@ export function Home() {
                 </p>
               </motion.div>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {/* Mobile: horizontal swipe rail */}
+              <div className="md:hidden">
+                <Swiper
+                  modules={[Pagination]}
+                  slidesPerView={1.15}
+                  spaceBetween={16}
+                  autoHeight={false}
+                  grabCursor
+                  pagination={{
+                    clickable: true,
+                    dynamicBullets: false,
+                  }}
+                  className="featured-pieces-swiper"
+                  a11y={{ enabled: true }}
+                >
+                  {products.map((product) => (
+                    <SwiperSlide key={product.id}>
+                      <ProductCard
+                        {...product}
+                        image={product.image}
+                        onQuickView={() => handleQuickView(product)}
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </div>
+
+              {/* Tablet / desktop: existing grid */}
+              <div className="hidden md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-4">
                 {products.slice(0, visibleCount).map((product, index) => (
                   <motion.div
                     key={product.id}

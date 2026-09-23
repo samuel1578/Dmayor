@@ -107,6 +107,6 @@ The following parts are safe to retain for a new project:
 5. **No admin panel** — Nothing exists for merchants to manage products, orders, or customers. The admin concept is completely absent.
 6. **Fallback data everywhere** — Collections and Blog pages show hardcoded data if Supabase is empty, which could mask real problems during development.
 7. **Supabase RLS policies** are set for public read access on all tables, which is fine for a starting point but needs review before production.
-8. **No `.env` file exists** — The `.gitignore` ignores `.env` but no `.env.example` exists either. The project will break on any fresh clone without manual setup of `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+8. **No `.env` file exists** — The `.gitignore` ignores `.env` but no `.env.example` exists either. The project will break on any fresh clone without manual setup of `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 9. **The `base: './'` in vite.config.ts** suggests it's configured for static hosting (like Vercel), not for subpath deployments.
 10. **The `.todo.md` file** shows this was built incrementally using Bolt (an AI coding tool), with many UI polish iterations but no backend/auth/order work.

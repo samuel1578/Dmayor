@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key-here';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabasePublishableKey) {
+  throw new Error(
+    'Supabase configuration error: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env (see .env.example). Do not commit real keys.',
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabasePublishableKey);
 
 export type Json =
   | string
@@ -20,10 +26,15 @@ export interface ProductRow {
   description: string | null;
   price: number;
   category_id: string | null;
+  /** Legacy JSON image URL list — storefront still reads this; prefer product_images long-term. */
   images: Json;
+  /**
+   * Legacy product-level stock — non-authoritative.
+   * Authoritative inventory lives on product_variants.stock.
+   */
   stock: number;
   featured: boolean;
-  status: string;
+  status: 'draft' | 'active' | 'archived';
   sku: string | null;
   created_at: string;
   updated_at: string;
@@ -32,15 +43,15 @@ export interface ProductRow {
 export type ProductInsert = {
   id?: string;
   name: string;
-  slug?: string;
+  slug?: string | null;
   description?: string | null;
   price: number;
   category_id?: string | null;
   images?: Json;
   stock?: number;
   featured?: boolean;
-  status?: string;
-  sku?: string;
+  status?: 'draft' | 'active' | 'archived';
+  sku?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -52,9 +63,10 @@ export interface ProductVariantRow {
   product_id: string;
   sku: string;
   size: string;
-  colour: string;
+  colour: string | null;
   stock: number;
   active: boolean;
+  price_override: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,9 +76,10 @@ export type ProductVariantInsert = {
   product_id: string;
   sku: string;
   size: string;
-  colour?: string;
+  colour?: string | null;
   stock?: number;
   active?: boolean;
+  price_override?: number | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -77,6 +90,7 @@ export interface ProductImageRow {
   id: string;
   product_id: string;
   image_url: string;
+  alt_text: string | null;
   display_order: number;
   is_primary: boolean;
   created_at: string;
@@ -87,6 +101,7 @@ export type ProductImageInsert = {
   id?: string;
   product_id: string;
   image_url: string;
+  alt_text?: string | null;
   display_order?: number;
   is_primary?: boolean;
   created_at?: string;
@@ -101,6 +116,7 @@ export interface CategoryRow {
   slug: string;
   description: string | null;
   icon_name: string | null;
+  active: boolean;
   created_at: string;
 }
 
@@ -110,6 +126,7 @@ export type CategoryInsert = {
   slug: string;
   description?: string | null;
   icon_name?: string | null;
+  active?: boolean;
   created_at?: string;
 };
 
@@ -200,7 +217,9 @@ export type CollectionProductUpdate = Partial<Omit<CollectionProductRow, 'id'>> 
 export type CartItemRow = {
   id: string;
   product_id: string;
+  variant_id: string | null;
   quantity: number;
+  user_id: string | null;
   session_id: string | null;
   created_at: string;
   updated_at: string;
@@ -209,7 +228,9 @@ export type CartItemRow = {
 export type CartItemInsert = {
   id?: string;
   product_id: string;
+  variant_id?: string | null;
   quantity?: number;
+  user_id?: string | null;
   session_id?: string | null;
   created_at?: string;
   updated_at?: string;

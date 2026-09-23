@@ -82,6 +82,55 @@ body.dark {
   transform: scale(1.15);
 }
 
+/* Featured Pieces — mobile-only horizontal swipe rail (grid remains md+) */
+.featured-pieces-swiper {
+  width: 100%;
+  overflow: hidden;
+  /* Reserve pagination row so bullets never change section height */
+  padding-bottom: 2.5rem;
+}
+
+.featured-pieces-swiper .swiper-wrapper {
+  align-items: stretch;
+}
+
+.featured-pieces-swiper .swiper-slide {
+  height: auto;
+  box-sizing: border-box;
+}
+
+.featured-pieces-swiper .swiper-pagination {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.featured-pieces-swiper .swiper-pagination-bullet {
+  width: 7px;
+  height: 7px;
+  margin: 0 5px !important;
+  background: rgba(17, 17, 17, 0.22);
+  opacity: 1;
+  border-radius: 9999px;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.dark .featured-pieces-swiper .swiper-pagination-bullet {
+  background: rgba(255, 253, 245, 0.28);
+}
+
+.featured-pieces-swiper .swiper-pagination-bullet-active {
+  background: #b8860b;
+  transform: scale(1.15);
+}
+
 @layer components {
   .underline-hover {
     @apply relative pb-1 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-ghana-green after:transition-all after:duration-300 hover:after:w-full;

@@ -393,6 +393,64 @@ Hero → Brand perspective (dark) → What we focus on (typographic rows + stagg
 
 ---
 
+## Sprint: Supabase Publishable-Key Env + Clean Fresh Migrations
+**Date:** 2026-09-23
+**Status:** Complete
+**Scope:** Client env + local migration set only. No remote SQL applied. No UI work.
+
+### Environment
+- `src/lib/supabase.ts` now uses `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` only.
+- Removed legacy `VITE_SUPABASE_ANON_KEY` and silent placeholder/fallback credentials.
+- Missing either var throws a clear config error (no secret values in messages).
+- `.env.example`: `VITE_SUPABASE_URL=`, `VITE_SUPABASE_PUBLISHABLE_KEY=` (empty placeholders). Real `.env` untouched.
+- No `service_role` / `sb_secret_*` / privileged keys in client code.
+
+### Migrations (fresh project)
+- **Removed:** `20251106121531_create_initial_schema.sql`, `20251106122008_seed_initial_data.sql`, `20251107000000_add_variants_and_rebrand.sql`.
+- **Added (run in order):**
+  1. `supabase/migrations/001_initial_proxy_shop_schema.sql`
+  2. `supabase/migrations/002_seed_proxy_shop_categories.sql`
+- No D'Mayor/demo products, collections, or blog seeds. Categories only: Shirts, Trousers, Hoodies, Shoes.
+
+### Schema
+`categories`, `products`, `product_variants`, `product_images`, `collections`, `collection_products`, `blog_posts`, `newsletter_subscribers`, `cart_items`.
+- `products.status` default `draft` + CHECK (`draft|active|archived`).
+- Legacy `products.images` + `products.stock` retained for current storefront; stock non-authoritative (variant-level inventory).
+- `product_images.image_url` ready for future Admin external-URL + preview flow.
+- Reusable `set_updated_at()` trigger where needed.
+
+### RLS / grants
+- Public SELECT: active categories/products, active variants of active products, images of active products, collections (+ junction for active products), published blog posts.
+- Public INSERT: newsletter only (no public SELECT on subscribers).
+- Cart table: RLS on, no public policies (localStorage cart unchanged).
+- Catalogue writes: **not** granted to `anon` or `authenticated` (no weak authenticated-admin policies).
+
+### Compatibility
+Shop/Home/Collections/Blog query fields preserved: `products.id,name,price,images,category_id,slug,status,featured`; category slugs; collections/blog fields.
+
+### Manual next step
+Apply `001_…` then `002_…` manually in the fresh Supabase SQL editor / CLI. Do not run old migrations.
+
+### Files changed
+`src/lib/supabase.ts`, `.env.example`, `INVESTIGATION.md`, `supabase/migrations/*` (3 removed, 2 added), `SPRINT_LOG.md`
+
+---
+
+## Sprint: Featured Pieces Mobile Swipe Rail
+**Date:** 2026-09-23
+**Status:** Complete
+**Scope:** Home Featured Pieces layout only. No ProductCard/query/UI redesign elsewhere.
+
+- **Mobile (`<md`):** Swiper horizontal swipe (`slidesPerView: 1.15`, `spaceBetween: 16`, peek of next card), `grabCursor`, clickable pagination (gold/muted), **no autoplay**.
+- **`md+`:** existing 2/4-column grid + entrance animations unchanged.
+- CSS: `.featured-pieces-swiper` (overflow hidden, reserved 2.5rem pagination row, `height: auto` slides).
+- Empty state / loading / “View All Products” CTA untouched.
+
+### Files changed
+`src/pages/Home.tsx`, `src/index.css`, `SPRINT_LOG.md`
+
+---
+
 ## Files NOT modified (project-wide, cumulative)
 - Supabase schema/migrations (beyond rebrand migration), auth, checkout, payments, orders, admin.
 - CartContext, ProductCard, QuickViewModal, Shop filtering, cart quantity logic.
@@ -403,7 +461,7 @@ Hero → Brand perspective (dark) → What we focus on (typographic rows + stagg
 ---
 
 ## Open follow-ups
-- Run `20251107000000_add_variants_and_rebrand.sql` manually in Supabase; replace `.env` placeholders.
+- ~~Run `20251107000000_add_variants_and_rebrand.sql` manually in Supabase; replace `.env` placeholders.~~ — superseded: run `001_initial_proxy_shop_schema.sql` then `002_seed_proxy_shop_categories.sql`; set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`.
 - Replace Footer `logo.png` (5.8 MB) with optimised asset (bundle weight).
 - Stale `.kilo/worktrees/tree-nest/` worktree causes pre-existing lint noise — out of scope.
 - ~~**Insert production domain** in `index.html` (`YOUR-DOMAIN.example`) for OG/canonical absolute URLs.~~ — **done** (`https://theproxyshop.vercel.app`).
