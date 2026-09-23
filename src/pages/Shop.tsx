@@ -11,6 +11,7 @@ interface Product {
   price: number;
   image?: string;
   category_id?: string;
+  slug?: string;
 }
 
 interface Category {
@@ -39,14 +40,22 @@ export function Shop() {
     const fetchData = async () => {
       try {
         const [productsRes, categoriesRes] = await Promise.all([
-          supabase.from('products').select('id, name, price, image, category_id'),
-          supabase.from('categories').select('id, name, slug'),
+          supabase.from('products').select('id, name, price, images, category_id, slug, status').eq('status', 'active'),
+          supabase.from('categories').select('id, name, slug').eq('slug', 'shirts').or('slug.eq.trousers').or('slug.eq.hoodies').or('slug.eq.shoes'),
         ]);
 
         if (productsRes.error) throw productsRes.error;
         if (categoriesRes.error) throw categoriesRes.error;
 
-        setProducts(productsRes.data || []);
+        const enrichedProducts = (productsRes.data || []).map((p) => {
+          const images = p.images as string[] || [];
+          return {
+            ...p,
+            image: images.length > 0 ? images[0] : undefined,
+          };
+        });
+
+        setProducts(enrichedProducts);
         setCategories(categoriesRes.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -81,7 +90,6 @@ export function Shop() {
         product={selectedProduct || undefined}
       />
 
-      {/* Header */}
       <div className="bg-gradient-to-r from-ghana-green to-ghana-black text-white py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.h1
@@ -97,21 +105,18 @@ export function Shop() {
             transition={{ delay: 0.1 }}
             className="text-lg text-gray-200"
           >
-            Discover authentic Ghanaian streetwear, lifestyle products, and creative merchandise
+            Shirts, Trousers, Hoodies, and Shoes — premium menswear for every occasion.
           </motion.p>
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Sidebar */}
           <motion.aside
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="md:col-span-1"
           >
-            {/* Category Filter */}
             <div className="mb-8">
               <h3 className="text-lg font-bold text-ghana-black dark:text-white mb-4">Categories</h3>
               <div className="space-y-2">
@@ -141,7 +146,6 @@ export function Shop() {
               </div>
             </div>
 
-            {/* Price Filter */}
             <div className="sticky top-20">
               <h3 className="text-lg font-bold text-ghana-black dark:text-white mb-4">Price Range</h3>
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
@@ -165,9 +169,7 @@ export function Shop() {
             </div>
           </motion.aside>
 
-          {/* Main Content */}
           <div className="md:col-span-3">
-            {/* Sorting */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -192,7 +194,6 @@ export function Shop() {
               </div>
             </motion.div>
 
-            {/* Products Grid */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">

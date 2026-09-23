@@ -61,9 +61,9 @@ export function Blog() {
     },
     {
       id: '3',
-      title: "Interview: Local Artists Supporting D'Mayor",
+      title: "Interview: Local Artists Supporting The Proxy Shop",
       slug: 'interview-local-artists',
-      excerpt: 'Meet the talented Ghanaian artists whose work inspires our designs.',
+      excerpt: 'Meet the talented artists whose work inspires our designs.',
       featured_image: 'https://images.pexels.com/photos/2018961/pexels-photo-2018961.jpeg?auto=compress&cs=tinysrgb&w=800',
       tags: ['Art', 'Community', 'Interview'],
       created_at: new Date(Date.now() - 172800000).toISOString(),
@@ -97,7 +97,7 @@ export function Blog() {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl font-bold mb-4"
           >
-            D'Mayor Stories
+            The Proxy Shop Stories
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: -10 }}

@@ -43,7 +43,7 @@ export function Contact() {
     {
       icon: Mail,
       title: 'Email',
-      info: 'hello@dmayor.store',
+      info: 'hello@theproxyshop.store',
       subinfo: 'Response within 24 hours',
     },
     {
@@ -68,7 +68,7 @@ export function Contact() {
       answer: 'Absolutely. Reach out to us for custom orders, sizing, or personalization requests.',
     },
     {
-      question: "How do I care for my D'Mayor pieces?",
+      question: "How do I care for my Proxy Shop pieces?",
       answer: 'Each item comes with care instructions. Most pieces are best hand-washed in cool water and air-dried.',
     },
   ];
@@ -234,7 +234,7 @@ export function Contact() {
 
             {/* WhatsApp CTA */}
             <a
-              href="https://wa.me/233XXXXXXXXX?text=Hi%20D'Mayor!"
+              href="https://wa.me/233XXXXXXXXX?text=Hi%20The%20Proxy%20Shop!"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 p-6 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-lg hover:shadow-lg transition-shadow"

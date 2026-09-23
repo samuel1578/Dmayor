@@ -4,23 +4,23 @@ import { Users, Target, Heart } from 'lucide-react';
 export function About() {
   const teamMembers = [
     {
-      name: 'Kwesi Mensah',
-      role: 'Founder & Creative Director',
+      name: 'Founder',
+      role: 'Creative Director',
       image: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=400',
     },
     {
-      name: 'Ama Osei',
-      role: 'Head of Design',
+      name: 'Head of Design',
+      role: 'Design Lead',
       image: 'https://images.pexels.com/photos/1181599/pexels-photo-1181599.jpeg?auto=compress&cs=tinysrgb&w=400',
     },
     {
-      name: 'Kojo Boateng',
-      role: 'Production Manager',
+      name: 'Production Manager',
+      role: 'Production',
       image: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=400',
     },
     {
-      name: 'Abena Asare',
-      role: 'Community Lead',
+      name: 'Community Lead',
+      role: 'Community',
       image: 'https://images.pexels.com/photos/1181599/pexels-photo-1181599.jpeg?auto=compress&cs=tinysrgb&w=400',
     },
   ];
@@ -29,7 +29,7 @@ export function About() {
     {
       icon: Target,
       title: 'Authenticity',
-      description: 'We stay true to our roots and celebrate genuine Ghanaian culture',
+      description: 'We stay true to quality and genuine craftsmanship',
     },
     {
       icon: Users,
@@ -61,7 +61,7 @@ export function About() {
             transition={{ delay: 0.1 }}
             className="text-xl md:text-2xl text-gray-200 max-w-2xl mx-auto"
           >
-            Born in the streets of Accra. Inspired by the people, rhythm, and pride of Ghana.
+            Born in the streets of Accra. Crafting premium menswear for the modern gentleman.
           </motion.p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export function About() {
               Our Mission
             </h2>
             <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              D'Mayor exists to celebrate Ghanaian culture through fashion and self-expression. We believe that every person deserves to feel confident and connected to their heritage. Our pieces are designed for those who wear their culture with pride, who express their individuality through style, and who understand that fashion is more than clothing—it's a statement.
+              The Proxy Shop exists to celebrate quality menswear and self-expression. We believe that every person deserves to feel confident and connected to their sense of style. Our pieces are designed for those who wear their identity with pride, who express their individuality through style, and who understand that fashion is more than clothing—it's a statement.
             </p>
           </motion.div>
 
@@ -91,10 +91,10 @@ export function About() {
             className="bg-white dark:bg-ghana-black rounded-lg p-8 md:p-12 border-l-4 border-ghana-green"
           >
             <p className="text-xl text-ghana-black dark:text-white mb-6 leading-relaxed">
-              D'Mayor started in 2023 when Kwesi Mensah, a young creative from Accra, noticed a gap in the market. He wanted to see more authentic Ghanaian fashion—pieces that told real stories, celebrated real culture, and were made with real quality. What began as a passion project in a small studio has evolved into a movement.
+              The Proxy Shop started in 2025 when our founder noticed a gap in the market. He wanted to see more quality menswear—pieces that told real stories, celebrated real craftsmanship, and were made with real quality. What began as a passion project has evolved into a destination for modern men.
             </p>
             <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              Every item is thoughtfully designed and carefully produced. From streetwear to accessories to art pieces, each collection reflects a moment in Ghanaian culture—the energy of Accra's nights, the pride of our heritage, the resilience of our people.
+              Every item is thoughtfully designed and carefully produced. From shirts to trousers to hoodies to shoes, each piece reflects a moment in modern menswear—the energy of the streets, the pride of craftsmanship, the resilience of our people.
             </p>
           </motion.div>
         </div>
@@ -191,10 +191,10 @@ export function About() {
             Join the Movement
           </h2>
           <p className="text-lg text-gray-300 mb-8">
-            Become part of a community celebrating Ghanaian culture, authentic style, and creative expression.
+            Become part of The Proxy Shop community. Premium menswear for the modern gentleman.
           </p>
           <button className="btn-primary bg-ghana-green text-white">
-            Shop D'Mayor Now
+            Shop The Proxy Shop Now
           </button>
         </div>
       </motion.section>

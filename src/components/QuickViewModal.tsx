@@ -3,16 +3,19 @@ import { X, ShoppingCart, Minus, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '../contexts/CartContext';
 
+export interface QuickViewProduct {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+  image?: string;
+  slug?: string;
+}
+
 interface QuickViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product?: {
-    id: string;
-    name: string;
-    price: number;
-    description?: string;
-    image?: string;
-  };
+  product?: QuickViewProduct;
 }
 
 export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps) {
@@ -28,6 +31,8 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
       price: product.price,
       quantity,
       image: product.image,
+      variantId: undefined,
+      sku: undefined,
     });
     setQuantity(1);
     onClose();
@@ -51,7 +56,6 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
             className="relative bg-white dark:bg-ghana-black rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl"
           >
             <div className="p-6 md:p-8">
-              {/* Close Button */}
               <button
                 onClick={onClose}
                 type="button"
@@ -63,7 +67,6 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
               </button>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 md:mt-0">
-                {/* Image */}
                 <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                   <img
                     src={
@@ -75,7 +78,6 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
                   />
                 </div>
 
-                {/* Details */}
                 <div className="flex flex-col justify-between">
                   <div>
                     <h2 className="text-3xl font-bold text-ghana-black dark:text-white mb-4">
@@ -90,12 +92,7 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
                       </p>
                     )}
 
-                    {/* Product Details */}
                     <div className="grid grid-cols-2 gap-4 mb-8 py-6 border-t border-b border-gray-200 dark:border-gray-700">
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Material</p>
-                        <p className="font-semibold text-ghana-black dark:text-white">100% Cotton</p>
-                      </div>
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Availability</p>
                         <p className="font-semibold text-ghana-green">In Stock</p>
@@ -103,7 +100,6 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
                     </div>
                   </div>
 
-                  {/* Quantity & Add to Cart */}
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quantity</p>

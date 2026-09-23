@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Facebook, Twitter, Heart } from 'lucide-react';
-import logoImage from '../assets/logo.jpg';
+import { Instagram, Facebook, Twitter } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import logoImage from '../assets/logo.png';
+import logoDark from '../assets/logodark.png';
 
 export function Footer() {
+  const { theme } = useTheme();
+  const logoSrc = theme === 'dark' ? logoImage : logoDark;
   const footerSections = [
     {
       title: 'Shop',
@@ -47,18 +51,17 @@ export function Footer() {
           {/* Brand Info */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden border-2 border-ghana-green shadow-md">
+              <div className="w-14">
                 <img
-                  src={logoImage}
-                  alt="D'Mayor logo"
-                  className="h-full w-full object-cover"
+                  src={logoSrc}
+                  alt="The Proxy Shop logo"
+                  className="h-14 w-auto object-contain"
                   loading="lazy"
                 />
               </div>
-              <span className="text-2xl md:text-3xl font-extrabold">D'Mayor</span>
             </div>
             <p className="text-gray-400 text-sm mb-4">
-              Born in the streets of Accra. Inspired by the people, rhythm, and pride of Ghana.
+              The Proxy Shop — Premium Menswear for the Modern Gentleman.
             </p>
             <div className="flex space-x-4">
               {socialLinks.map(({ icon: Icon, url, name }) => (
@@ -108,7 +111,7 @@ export function Footer() {
         {/* Copyright */}
         <div className="text-center text-sm text-gray-400">
           <p>
-            Copyright © 2025 D'Mayor. Made with <Heart size={14} className="inline text-ghana-red" /> in Ghana.
+            Copyright © 2026 The Proxy Shop. All rights reserved.
           </p>
         </div>
       </div>

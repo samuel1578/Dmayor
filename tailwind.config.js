@@ -24,8 +24,36 @@ export default {
         'ghana-accent-red': '#CE1126',
       },
       fontFamily: {
-        display: ['system-ui', 'sans-serif'],
-        body: ['system-ui', 'sans-serif'],
+        display: ['"Bodoni Moda"', 'Georgia', 'Times New Roman', 'serif'],
+        body: ['Manrope', 'system-ui', 'sans-serif'],
+        hero: ['"Bodoni Moda"', 'Georgia', 'serif'],
+        ui: ['Manrope', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        'hero-opening': [
+          'clamp(2.625rem, 6.5vw + 1rem, 6.25rem)',
+          { lineHeight: '1.02', letterSpacing: '-0.02em' },
+        ],
+        'hero-chapter': [
+          'clamp(2.25rem, 5vw + 0.75rem, 5.5rem)',
+          { lineHeight: '0.95', letterSpacing: '-0.025em' },
+        ],
+        'hero-closing': [
+          'clamp(2rem, 4.5vw + 0.75rem, 4.5rem)',
+          { lineHeight: '1.05', letterSpacing: '-0.02em' },
+        ],
+        'brand-heading': [
+          'clamp(2.375rem, 3.25vw + 1.35rem, 4.75rem)',
+          { lineHeight: '1.05', letterSpacing: '-0.02em' },
+        ],
+        'nav-label': [
+          'clamp(1.75rem, 1rem + 1.5vw, 2.25rem)',
+          { lineHeight: '1.05', letterSpacing: '-0.02em' },
+        ],
+        'empty-heading': [
+          'clamp(2.125rem, 3vw + 1.25rem, 4rem)',
+          { lineHeight: '1.08', letterSpacing: '-0.02em' },
+        ],
       },
       keyframes: {
         'spin-star': {

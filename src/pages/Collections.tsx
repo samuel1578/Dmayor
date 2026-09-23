@@ -14,18 +14,20 @@ interface Collection {
 export function Collections() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchCollections = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error: err } = await supabase
           .from('collections')
           .select('id, name, slug, description, featured_image');
 
-        if (error) throw error;
+        if (err) throw err;
         setCollections(data || []);
       } catch (err) {
         console.error('Error fetching collections:', err);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -34,42 +36,21 @@ export function Collections() {
     fetchCollections();
   }, []);
 
-  const defaultCollections = [
-    {
-      id: '1',
-      name: 'Accra Nights',
-      slug: 'accra-nights',
-      description: 'Urban elegance inspired by the vibrant nightlife of Accra',
-      featured_image: 'https://images.pexels.com/photos/3407270/pexels-photo-3407270.jpeg?auto=compress&cs=tinysrgb&w=800',
-    },
-    {
-      id: '2',
-      name: 'The Culture Collection',
-      slug: 'culture-collection',
-      description: 'Celebrating Ghanaian heritage and traditional craftsmanship',
-      featured_image: 'https://images.pexels.com/photos/1778412/pexels-photo-1778412.jpeg?auto=compress&cs=tinysrgb&w=800',
-    },
-    {
-      id: '3',
-      name: 'Street Essence',
-      slug: 'street-essence',
-      description: 'Raw, unfiltered streetwear for the bold and authentic',
-      featured_image: 'https://images.pexels.com/photos/1082516/pexels-photo-1082516.jpeg?auto=compress&cs=tinysrgb&w=800',
-    },
-    {
-      id: '4',
-      name: 'Art & Expression',
-      slug: 'art-expression',
-      description: 'Limited edition pieces featuring local artists\' work',
-      featured_image: 'https://images.pexels.com/photos/2018961/pexels-photo-2018961.jpeg?auto=compress&cs=tinysrgb&w=800',
-    },
-  ];
-
-  const displayCollections = collections.length > 0 ? collections : defaultCollections;
+  if (error) {
+    return (
+      <div className="bg-ghana-light dark:bg-ghana-dark transition-colors duration-300 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-ghana-black dark:text-white text-lg">Unable to load collections.</p>
+          <Link to="/" className="btn-primary bg-ghana-green text-white mt-4 inline-block">
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-ghana-light dark:bg-ghana-dark transition-colors duration-300 min-h-screen">
-      {/* Header */}
       <div className="bg-gradient-to-r from-ghana-yellow to-ghana-red text-white py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.h1
@@ -85,12 +66,11 @@ export function Collections() {
             transition={{ delay: 0.1 }}
             className="text-lg text-white opacity-90"
           >
-            Curated themed collections celebrating Ghanaian culture and urban fashion
+            Curated collections for every style.
           </motion.p>
         </div>
       </div>
 
-      {/* Collections Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -102,9 +82,13 @@ export function Collections() {
               ★
             </motion.div>
           </div>
+        ) : collections.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <p className="text-ghana-black dark:text-white text-lg">No collections yet. Check back soon!</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {displayCollections.map((collection, index) => (
+            {collections.map((collection, index) => (
               <motion.div
                 key={collection.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -137,7 +121,6 @@ export function Collections() {
         )}
       </div>
 
-      {/* Featured Section */}
       <motion.section
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
@@ -149,7 +132,7 @@ export function Collections() {
             New Collections Dropping Monthly
           </h2>
           <p className="text-lg text-gray-300 mb-8">
-            We constantly evolve our collections to reflect the latest trends, seasons, and stories from the Ghanaian streets.
+            We constantly evolve our collections to reflect the latest trends and styles.
           </p>
           <button className="btn-primary bg-ghana-green text-white">
             Notify Me of New Drops

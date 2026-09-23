@@ -3,15 +3,16 @@ import { ShoppingCart, Eye } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '../contexts/CartContext';
 
-interface ProductCardProps {
+export interface ProductCardData {
   id: string;
   name: string;
   price: number;
   image?: string;
   onQuickView?: () => void;
+  variantCount?: number;
 }
 
-export function ProductCard({ id, name, price, image, onQuickView }: ProductCardProps) {
+export function ProductCard({ id, name, price, image, onQuickView, variantCount }: ProductCardData) {
   const [isHovered, setIsHovered] = useState(false);
   const { addItem } = useCart();
 
@@ -22,6 +23,8 @@ export function ProductCard({ id, name, price, image, onQuickView }: ProductCard
       price,
       quantity: 1,
       image,
+      variantId: undefined,
+      sku: undefined,
     });
   };
 
@@ -39,7 +42,6 @@ export function ProductCard({ id, name, price, image, onQuickView }: ProductCard
       onMouseLeave={() => setIsHovered(false)}
       className="card-product h-full group"
     >
-      {/* Image Container */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden bg-gray-100 dark:bg-gray-800">
         <motion.img
           src={image || 'https://images.pexels.com/photos/1055691/pexels-photo-1055691.jpeg?auto=compress&cs=tinysrgb&w=500'}
@@ -49,7 +51,6 @@ export function ProductCard({ id, name, price, image, onQuickView }: ProductCard
           transition={{ duration: 0.4 }}
         />
 
-        {/* Overlay Actions */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: isHovered ? 1 : 0 }}
@@ -78,7 +79,6 @@ export function ProductCard({ id, name, price, image, onQuickView }: ProductCard
         </motion.div>
       </div>
 
-      {/* Product Info */}
       <div className="p-4 md:p-6">
         <h3 className="text-lg font-semibold text-ghana-black dark:text-white mb-2 line-clamp-2 group-hover:text-ghana-green transition-colors">
           {name}
@@ -97,7 +97,10 @@ export function ProductCard({ id, name, price, image, onQuickView }: ProductCard
           </motion.div>
         </div>
 
-        {/* Mobile Controls */}
+        {variantCount !== undefined && variantCount > 1 && (
+          <p className="text-xs text-gray-500 mt-2">{variantCount} variants available</p>
+        )}
+
         <div className="mt-4 flex flex-col gap-2 md:hidden">
           <button
             onClick={handleQuickView}

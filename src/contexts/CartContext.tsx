@@ -7,6 +7,8 @@ export interface CartItem {
   price: number;
   quantity: number;
   image?: string;
+  variantId?: string;
+  sku?: string;
 }
 
 interface CartContextType {
@@ -36,10 +38,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = (item: Omit<CartItem, 'id'>) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.productId === item.productId);
+      const existing = prev.find(
+        (i) => i.productId === item.productId && i.variantId === item.variantId
+      );
       if (existing) {
         return prev.map((i) =>
-          i.productId === item.productId ? { ...i, quantity: i.quantity + item.quantity } : i
+          i.productId === item.productId && i.variantId === item.variantId
+            ? { ...i, quantity: i.quantity + item.quantity }
+            : i
         );
       }
       return [...prev, { ...item, id: Date.now().toString() }];

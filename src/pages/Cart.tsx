@@ -25,7 +25,7 @@ export function Cart() {
               Your Cart is Empty
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-md">
-              Start shopping and add some amazing D'Mayor pieces to your cart.
+              Start shopping and add some amazing Proxy Shop pieces to your cart.
             </p>
             <Link to="/shop" className="btn-primary bg-ghana-green text-white inline-flex items-center gap-2">
               Continue Shopping
@@ -39,7 +39,6 @@ export function Cart() {
 
   return (
     <div className="bg-ghana-light dark:bg-ghana-dark transition-colors duration-300 min-h-screen py-12 md:py-16">
-      {/* Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
@@ -53,7 +52,6 @@ export function Cart() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -75,7 +73,6 @@ export function Cart() {
                     transition={{ delay: index * 0.05 }}
                     className="p-6 flex flex-col md:flex-row gap-6"
                   >
-                    {/* Item Image */}
                     <div className="w-full md:w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
                       <img
                         src={
@@ -87,11 +84,16 @@ export function Cart() {
                       />
                     </div>
 
-                    {/* Item Details */}
                     <div className="flex-grow">
                       <h3 className="text-lg font-semibold text-ghana-black dark:text-white mb-2">
                         {item.productName}
                       </h3>
+                      {item.sku && (
+                        <p className="text-xs text-gray-500 mb-1">SKU: {item.sku}</p>
+                      )}
+                      {item.variantId && (
+                        <p className="text-xs text-ghana-green mb-1">Variant selected</p>
+                      )}
                       <p className="text-2xl font-bold text-ghana-green mb-4">
                         ₵{item.price.toFixed(2)} each
                       </p>
@@ -117,7 +119,6 @@ export function Cart() {
                       </div>
                     </div>
 
-                    {/* Price & Remove */}
                     <div className="flex flex-col items-end justify-between">
                       <p className="text-2xl font-bold text-ghana-black dark:text-white">
                         ₵{(item.price * item.quantity).toFixed(2)}
@@ -133,7 +134,6 @@ export function Cart() {
                 ))}
               </div>
 
-              {/* Clear Cart Button */}
               <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                 <button
                   onClick={clearCart}
@@ -145,7 +145,6 @@ export function Cart() {
             </motion.div>
           </div>
 
-          {/* Order Summary */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -195,7 +194,6 @@ export function Cart() {
                 </Link>
               </div>
 
-              {/* Trust Badges */}
               <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700 space-y-3 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-start gap-2">
                   <span className="text-ghana-green font-bold mt-0.5">✓</span>
@@ -215,7 +213,6 @@ export function Cart() {
         </div>
       </div>
 
-      {/* Related Products CTA */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -227,7 +224,7 @@ export function Cart() {
             Don't Forget These Essentials
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Add matching accessories to complete your look
+            Add matching items to complete your look
           </p>
           <Link to="/shop" className="btn-primary bg-ghana-green text-white inline-flex items-center gap-2">
             View More Products

@@ -12,11 +12,74 @@ html {
 }
 
 body {
-  @apply bg-ghana-light text-ghana-black transition-colors duration-300;
+  @apply bg-ghana-light text-ghana-black font-ui transition-colors duration-300;
 }
 
 body.dark {
   @apply bg-ghana-dark text-white;
+}
+
+/* Hero editorial type — Bodoni Moda display + Manrope UI, scoped to scrolly hero */
+.hero-type-display {
+  font-family: "Bodoni Moda", Georgia, "Times New Roman", serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+}
+
+.hero-type-ui {
+  font-family: Manrope, system-ui, sans-serif;
+}
+
+/* Fit Collections Swiper — fixed geometry (no autoHeight, no vertical jump) */
+.fit-collections-swiper {
+  width: 100%;
+  /* Clip overflow so loop slides cannot expand document flow */
+  overflow: hidden;
+  /* Reserve pagination row so bullet placement never changes section height */
+  padding-bottom: 2.5rem;
+}
+
+.fit-collections-swiper .swiper-wrapper {
+  align-items: stretch;
+}
+
+/* Every slide (incl. loop clones) shares identical outer geometry */
+.fit-collections-swiper .swiper-slide {
+  height: auto;
+  box-sizing: border-box;
+}
+
+.fit-collections-swiper .swiper-slide > .aspect-\[3\/4\] {
+  width: 100%;
+}
+
+.fit-collections-swiper .swiper-pagination {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fit-collections-swiper .swiper-pagination-bullet {
+  width: 7px;
+  height: 7px;
+  margin: 0 5px !important;
+  background: rgba(255, 253, 245, 0.28);
+  opacity: 1;
+  border-radius: 9999px;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.fit-collections-swiper .swiper-pagination-bullet-active {
+  background: #b8860b;
+  /* transform only — never layout-affecting properties */
+  transform: scale(1.15);
 }
 
 @layer components {

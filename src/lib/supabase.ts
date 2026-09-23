@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://uuqhlntiqexqlbeohyyn.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1cWhsbnRpcWV4cWxiZW9oeXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MjkxNTUsImV4cCI6MjA3ODAwNTE1NX0.HF2IQRx7odwphbFyIx7tHDhSPNlaSFGiYnKPb1sIrzs';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key-here';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -16,12 +16,15 @@ export type Json =
 export interface ProductRow {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   price: number;
   category_id: string | null;
   images: Json;
   stock: number;
   featured: boolean;
+  status: string;
+  sku: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,17 +32,68 @@ export interface ProductRow {
 export type ProductInsert = {
   id?: string;
   name: string;
+  slug?: string;
   description?: string | null;
   price: number;
   category_id?: string | null;
   images?: Json;
   stock?: number;
   featured?: boolean;
+  status?: string;
+  sku?: string;
   created_at?: string;
   updated_at?: string;
 };
 
 export type ProductUpdate = Partial<Omit<ProductRow, 'id'>> & { id?: string };
+
+export interface ProductVariantRow {
+  id: string;
+  product_id: string;
+  sku: string;
+  size: string;
+  colour: string;
+  stock: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProductVariantInsert = {
+  id?: string;
+  product_id: string;
+  sku: string;
+  size: string;
+  colour?: string;
+  stock?: number;
+  active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProductVariantUpdate = Partial<Omit<ProductVariantRow, 'id'>> & { id?: string };
+
+export interface ProductImageRow {
+  id: string;
+  product_id: string;
+  image_url: string;
+  display_order: number;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProductImageInsert = {
+  id?: string;
+  product_id: string;
+  image_url: string;
+  display_order?: number;
+  is_primary?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProductImageUpdate = Partial<Omit<ProductImageRow, 'id'>> & { id?: string };
 
 export interface CategoryRow {
   id: string;
@@ -143,14 +197,14 @@ export type CollectionProductInsert = {
 
 export type CollectionProductUpdate = Partial<Omit<CollectionProductRow, 'id'>> & { id?: string };
 
-export interface CartItemRow {
+export type CartItemRow = {
   id: string;
   product_id: string;
   quantity: number;
   session_id: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export type CartItemInsert = {
   id?: string;
@@ -170,6 +224,16 @@ export type Database = {
         Row: ProductRow;
         Insert: ProductInsert;
         Update: ProductUpdate;
+      };
+      product_variants: {
+        Row: ProductVariantRow;
+        Insert: ProductVariantInsert;
+        Update: ProductVariantUpdate;
+      };
+      product_images: {
+        Row: ProductImageRow;
+        Insert: ProductImageInsert;
+        Update: ProductImageUpdate;
       };
       categories: {
         Row: CategoryRow;
