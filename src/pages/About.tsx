@@ -1,203 +1,276 @@
 import { motion } from 'framer-motion';
-import { Users, Target, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { aboutContent } from '../lib/aboutContent';
+
+const rise = {
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-60px' },
+  transition: { duration: 0.55, ease: 'easeOut' as const },
+};
+
+const slowerRise = {
+  ...rise,
+  transition: { duration: 0.6, ease: 'easeOut' as const },
+};
+
+function EditorialImage({
+  src,
+  alt,
+  position,
+  className,
+  imgClassName,
+}: {
+  src: string;
+  alt: string;
+  position: string;
+  className?: string;
+  imgClassName?: string;
+}) {
+  return (
+    <div className={`relative overflow-hidden bg-black/10 dark:bg-white/5 ${className ?? ''}`}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        style={{ objectPosition: position }}
+        className={`h-full w-full object-cover ${imgClassName ?? ''}`}
+      />
+    </div>
+  );
+}
+
+function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p
+      className={`hero-type-ui mb-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-ghana-green md:mb-4 ${className ?? ''}`}
+    >
+      {children}
+    </p>
+  );
+}
+
+function FounderPortrait() {
+  const { founder } = aboutContent;
+
+  if (founder.image) {
+    return (
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-black/10 dark:bg-white/5">
+        <img
+          src={founder.image}
+          alt={founder.imageAlt}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover object-[50%_25%]"
+        />
+      </div>
+    );
+  }
+
+  /* Swappable placeholder — drop founder.png into config when available */
+  return (
+    <div
+      className="relative flex aspect-[3/4] w-full items-center justify overflow-hidden border border-dashed border-ghana-green/35 bg-gradient-to-b from-ghana-light to-white dark:from-ghana-dark dark:to-black"
+      aria-hidden="true"
+    >
+      <div className="px-8 text-center">
+        <span className="hero-type-display block text-[clamp(1.75rem,4vw,2.5rem)] font-medium leading-tight text-ghana-black/35 dark:text-white/35">
+          Founder portrait
+        </span>
+        <span className="hero-type-ui mt-3 block text-[12px] font-medium uppercase tracking-[0.2em] text-ghana-green/70">
+          founder.png
+        </span>
+      </div>
+      <div className="pointer-events-none absolute inset-x-6 top-1/2 h-px -translate-y-1/2 bg-ghana-green/15" />
+      <div className="pointer-events-none absolute inset-y-6 left-1/2 w-px -translate-x-1/2 bg-ghana-green/15" />
+    </div>
+  );
+}
 
 export function About() {
-  const teamMembers = [
-    {
-      name: 'Founder',
-      role: 'Creative Director',
-      image: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=400',
-    },
-    {
-      name: 'Head of Design',
-      role: 'Design Lead',
-      image: 'https://images.pexels.com/photos/1181599/pexels-photo-1181599.jpeg?auto=compress&cs=tinysrgb&w=400',
-    },
-    {
-      name: 'Production Manager',
-      role: 'Production',
-      image: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=400',
-    },
-    {
-      name: 'Community Lead',
-      role: 'Community',
-      image: 'https://images.pexels.com/photos/1181599/pexels-photo-1181599.jpeg?auto=compress&cs=tinysrgb&w=400',
-    },
-  ];
-
-  const values = [
-    {
-      icon: Target,
-      title: 'Authenticity',
-      description: 'We stay true to quality and genuine craftsmanship',
-    },
-    {
-      icon: Users,
-      title: 'Community',
-      description: 'Every piece is crafted with and for the people who wear it',
-    },
-    {
-      icon: Heart,
-      title: 'Quality',
-      description: 'Premium materials and meticulous craftsmanship in every item',
-    },
-  ];
+  const { hero, perspective, focus, founder, closing } = aboutContent;
 
   return (
-    <div className="bg-ghana-light dark:bg-ghana-dark transition-colors duration-300">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-b from-ghana-green to-ghana-black text-white py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-6xl font-bold mb-6"
-          >
-            Our Story
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-xl md:text-2xl text-gray-200 max-w-2xl mx-auto"
-          >
-            Born in the streets of Accra. Crafting premium menswear for the modern gentleman.
-          </motion.p>
-        </div>
-      </div>
-
-      {/* Mission Section */}
-      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-ghana-black dark:text-white mb-6">
-              Our Mission
-            </h2>
-            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              The Proxy Shop exists to celebrate quality menswear and self-expression. We believe that every person deserves to feel confident and connected to their sense of style. Our pieces are designed for those who wear their identity with pride, who express their individuality through style, and who understand that fashion is more than clothing—it's a statement.
+    <div className="bg-ghana-light text-ghana-black transition-colors duration-300 dark:bg-ghana-dark dark:text-white">
+      {/* 1 — About hero */}
+      <section aria-labelledby="about-hero-heading" className="relative overflow-hidden">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 pb-14 pt-10 sm:px-6 md:pb-20 md:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:px-8 lg:pb-24">
+          <motion.div {...rise}>
+            <Eyebrow>{hero.eyebrow}</Eyebrow>
+            <h1
+              id="about-hero-heading"
+              className="hero-type-display mb-5 whitespace-pre-line font-medium text-brand-heading text-ghana-black dark:text-white md:mb-7"
+            >
+              {hero.title}
+            </h1>
+            <p className="max-w-[46ch] text-[15px] font-normal leading-relaxed text-gray-600 dark:text-gray-400 md:text-base">
+              {hero.description}
             </p>
           </motion.div>
 
-          {/* Founding Story */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white dark:bg-ghana-black rounded-lg p-8 md:p-12 border-l-4 border-ghana-green"
-          >
-            <p className="text-xl text-ghana-black dark:text-white mb-6 leading-relaxed">
-              The Proxy Shop started in 2025 when our founder noticed a gap in the market. He wanted to see more quality menswear—pieces that told real stories, celebrated real craftsmanship, and were made with real quality. What began as a passion project has evolved into a destination for modern men.
-            </p>
-            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              Every item is thoughtfully designed and carefully produced. From shirts to trousers to hoodies to shoes, each piece reflects a moment in modern menswear—the energy of the streets, the pride of craftsmanship, the resilience of our people.
-            </p>
+          <motion.div {...slowerRise} className="lg:-mr-2 xl:-mr-6">
+            <EditorialImage
+              src={hero.image.src}
+              alt={hero.image.alt}
+              position={hero.image.position}
+              className="aspect-[4/5] w-full sm:aspect-[3/4] lg:aspect-[3/4] lg:min-h-[520px]"
+            />
           </motion.div>
         </div>
       </section>
 
-      {/* Values Section */}
-      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-ghana-yellow to-ghana-red bg-opacity-10">
-        <div className="max-w-7xl mx-auto">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-4xl font-bold text-ghana-black dark:text-white text-center mb-16"
-          >
-            Our Core Values
-          </motion.h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {values.map((value, index) => {
-              const Icon = value.icon;
-              return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className="text-center"
-                >
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ghana-green text-white mb-6">
-                    <Icon size={32} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-ghana-black dark:text-white mb-3">
-                    {value.title}
-                  </h3>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    {value.description}
-                  </p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-4xl font-bold text-ghana-black dark:text-white text-center mb-16"
-          >
-            Meet Our Team
-          </motion.h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {teamMembers.map((member, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="text-center group"
-              >
-                <div className="mb-4 overflow-hidden rounded-lg h-64">
-                  <img
-                    src={member.image}
-                    alt={member.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                </div>
-                <h3 className="text-lg font-bold text-ghana-black dark:text-white mb-1">
-                  {member.name}
-                </h3>
-                <p className="text-ghana-green font-semibold text-sm">
-                  {member.role}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        className="bg-ghana-black text-white py-16 md:py-24 px-4"
+      {/* 2 — Brand perspective + editorial image */}
+      <section
+        aria-labelledby="about-perspective-heading"
+        className="bg-ghana-black text-ghana-light"
       >
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">
-            Join the Movement
-          </h2>
-          <p className="text-lg text-gray-300 mb-8">
-            Become part of The Proxy Shop community. Premium menswear for the modern gentleman.
-          </p>
-          <button className="btn-primary bg-ghana-green text-white">
-            Shop The Proxy Shop Now
-          </button>
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-14 sm:px-6 md:py-20 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-16 lg:px-8 lg:py-24">
+          <motion.div {...rise} className="order-2 lg:order-1">
+            <EditorialImage
+              src={perspective.image.src}
+              alt={perspective.image.alt}
+              position={perspective.image.position}
+              className="aspect-[4/5] w-full sm:aspect-[3/4] lg:aspect-[3/4] lg:min-h-[520px]"
+            />
+          </motion.div>
+
+          <motion.div {...slowerRise} className="order-1 lg:order-2">
+            <Eyebrow>OUR POINT OF VIEW</Eyebrow>
+            <h2
+              id="about-perspective-heading"
+              className="hero-type-display mb-5 font-medium text-brand-heading text-ghana-light md:mb-6"
+            >
+              {perspective.heading}
+            </h2>
+            <p className="max-w-[48ch] text-[15px] font-normal leading-relaxed text-white/65 md:text-base">
+              {perspective.description}
+            </p>
+          </motion.div>
         </div>
-      </motion.section>
+      </section>
+
+      {/* 3 — What we focus on: typographic rows + staggered images */}
+      <section aria-labelledby="about-focus-heading" className="py-14 md:py-20 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div {...rise} className="mb-10 md:mb-14">
+            <Eyebrow>{focus.eyebrow}</Eyebrow>
+            <h2
+              id="about-focus-heading"
+              className="hero-type-display max-w-[16ch] font-medium text-brand-heading text-ghana-black dark:text-white"
+            >
+              {focus.heading}
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-16">
+            <motion.ul
+              {...rise}
+              className="hero-type-ui border-t border-ghana-black/12 dark:border-white/12"
+            >
+              {focus.points.map((point) => (
+                <li
+                  key={point.number}
+                  className="border-b border-ghana-black/12 py-5 dark:border-white/12 md:py-6"
+                >
+                  <div className="flex gap-4 md:gap-6">
+                    <span className="mt-0.5 w-7 shrink-0 text-[11px] font-semibold tabular-nums tracking-[0.12em] text-ghana-green">
+                      {point.number}
+                    </span>
+                    <div>
+                      <p className="text-[16px] font-medium tracking-[0.01em] text-ghana-black dark:text-white md:text-lg">
+                        {point.title}
+                      </p>
+                      <p className="mt-1.5 max-w-[42ch] text-[13px] font-normal leading-relaxed text-gray-600 dark:text-gray-400 md:text-sm">
+                        {point.description}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </motion.ul>
+
+            <div className="grid grid-cols-2 gap-4 md:gap-5">
+              <motion.div {...slowerRise}>
+                <EditorialImage
+                  src={focus.images[0].src}
+                  alt={focus.images[0].alt}
+                  position={focus.images[0].position}
+                  className="aspect-[3/4] w-full"
+                />
+              </motion.div>
+              <motion.div
+                {...slowerRise}
+                transition={{ duration: 0.6, delay: 0.08, ease: 'easeOut' as const }}
+                className="mt-8 md:mt-12"
+              >
+                <EditorialImage
+                  src={focus.images[1].src}
+                  alt={focus.images[1].alt}
+                  position={focus.images[1].position}
+                  className="aspect-[3/4] w-full"
+                />
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4 — Founder (single founder; portrait slot ready for founder.png) */}
+      <section
+        aria-labelledby="about-founder-heading"
+        className="border-y border-ghana-black/10 bg-white py-14 dark:border-white/10 dark:bg-black/40 md:py-20 lg:py-24"
+      >
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-16 lg:px-8">
+          <motion.div {...rise}>
+            <FounderPortrait />
+          </motion.div>
+
+          <motion.div {...slowerRise}>
+            <Eyebrow>{founder.eyebrow}</Eyebrow>
+            <h2
+              id="about-founder-heading"
+              className="hero-type-display mb-5 font-medium text-brand-heading text-ghana-black dark:text-white md:mb-6"
+            >
+              {founder.heading}
+            </h2>
+            <p className="max-w-[48ch] text-[15px] font-normal leading-relaxed text-gray-600 dark:text-gray-400 md:text-base">
+              {founder.description}
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 5 — Closing CTA */}
+      <section aria-labelledby="about-closing-heading" className="bg-ghana-black text-ghana-light">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8 lg:py-24">
+          <motion.div {...rise} className="max-w-2xl">
+            <h2
+              id="about-closing-heading"
+              className="hero-type-display mb-4 font-medium text-brand-heading text-ghana-light md:mb-5"
+            >
+              {closing.heading}
+            </h2>
+            <p className="mb-8 max-w-[44ch] text-[15px] font-normal leading-relaxed text-white/65 md:text-base">
+              {closing.description}
+            </p>
+            <Link
+              to={closing.cta.href}
+              className="hero-type-ui group inline-flex w-fit items-center gap-2 text-[13px] font-medium tracking-[0.04em] text-ghana-light transition-colors hover:text-ghana-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green focus-visible:ring-offset-2 focus-visible:ring-offset-ghana-black md:text-sm"
+            >
+              <span className="border-b border-white/25 pb-0.5 transition-colors group-hover:border-ghana-green">
+                {closing.cta.label}
+              </span>
+              <ArrowRight
+                size={16}
+                aria-hidden="true"
+                className="text-ghana-green transition-transform group-hover:translate-x-0.5"
+              />
+            </Link>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }

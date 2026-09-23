@@ -240,3 +240,173 @@ Closing     0.86–1.00   narrative + image dim overlay 0.84–0.93
 
 ### Verification
 - `tsc` clean · `lint` 0 errors · `build` success · no screenshots.
+
+---
+
+## Sprint: Fullscreen Mobile Navigation + Fit Collections
+**Date:** 2026-09-23
+**Status:** Complete
+**Scope:** Navbar mobile menu + homepage Categories→FitCollections only. Hero/Supabase/cart untouched. No visual QA.
+
+### Fullscreen mobile nav (`Navbar.tsx`)
+- `fixed inset-0`, `h-[100dvh]`, `z-[60]`; header row: logo + theme + cart + Close.
+- Editorial rows: `01–06` + serif label (28–32px) + tagline; active gold + `aria-current`.
+- Cart strengthened at bottom with count; future account slot commented (no fake auth CTAs).
+- Escape, body scroll-lock, `aria-expanded`, focus rings retained; closes on route change.
+
+### Fit Collections
+- Replaced “Our Categories” with editorial fit section; config in `homeContent.ts` (`fitCollections`).
+- Copy: “THE PROXY EDIT” / “Fits worth building around.” / “Explore All Fits” → `/collections`.
+- Extracted `src/components/home/FitCollections.tsx`.
+- Mobile: Swiper portrait **3/4**, `slidesPerView: 1`, loop, pagination gold/muted.
+- Desktop: static 4-image editorial grid + copy (no autoplay carousel).
+- **Swiper newly installed** `swiper@^14.2.0`; autoplay `FIT_COLLECTION_AUTOPLAY_DELAY = 3500`; reduced-motion disables autoplay.
+
+### Images
+- Existing four homepage image URLs unchanged.
+
+### Verification
+- `tsc` clean · `lint` 0 errors · `build` success.
+
+### Files changed
+`Navbar.tsx`, `FitCollections.tsx`, `homeContent.ts`, `Home.tsx`, `index.css`, `tailwind.config.js`, `package.json`, `package-lock.json`
+
+---
+
+## Sprint: Featured Pieces Empty State + Fit Collections Swiper Stability
+**Date:** 2026-09-23
+**Status:** Complete
+**Scope:** Home empty state + mobile Swiper geometry only. No visual QA.
+
+### Featured Pieces empty state
+- Replaced “No products yet…” with editorial empty state when `products.length === 0` (section kept).
+- Copy: “FEATURED PIECES” / “The next rotation is taking shape.” / supporting line / decorative diamond mark / **Explore the Shop** → `/shop`.
+- Heading: Tailwind `empty-heading` clamp ≈ 34–64px; serif display + Manrope UI.
+- Populated grid still uses existing “View All Products” CTA.
+
+### Swiper stability fix
+- **Cause:** `!overflow-visible` let loop slides escape and affect document flow; slides lacked locked pre-load geometry; pagination not in a reserved fixed row.
+- **Fix:** removed `!overflow-visible` → `overflow: hidden`; explicit `autoHeight={false}`; shared `aspect-[3/4]` wrapper with absolute `object-cover` image (+ width/height attrs); stable slide/wrapper CSS; fixed pagination row via container `padding-bottom` + absolute centered bullets; no scroll/focus handlers on slide change; no remount keys.
+- Active bullet: `transform: scale` only (no layout change).
+
+### Confirmations
+- `autoHeight` disabled · fixed 3:4 media · autoplay still **3500ms** · reduced-motion autoplay off · **no image URLs changed**.
+
+### Files changed
+`Home.tsx`, `FitCollections.tsx`, `index.css`, `tailwind.config.js`
+
+---
+
+## Sprint: Theme-Aware Logo (Navbar + Mobile Menu)
+**Date:** 2026-09-23
+**Status:** Complete
+
+- `logoSrc = theme === 'dark' ? logoHeader : logoDark` via existing `useTheme()`.
+- Applied to Navbar header logo + fullscreen menu logo (same `logoSrc`, no second logic path).
+- Dark: `logo-header.png` · Light: `logodark.png`.
+- Same img classes/dimensions; Footer & hero not changed in this pass.
+
+### Files changed
+`src/components/Navbar.tsx`
+
+---
+
+## Sprint: Theme-Aware Hero Opening Logo
+**Date:** 2026-09-23
+**Status:** Complete
+
+- `HeroNarrative` uses `useTheme()` → dark `logo-header.png` / light `logodark.png`.
+- Same `width/height`, `h-16` → `md:h-[96px]` / `lg:h-[108px]`, `object-contain`; no layout shift; hero motion/scroll untouched.
+
+### Files changed
+`src/components/hero/HeroNarrative.tsx`
+
+---
+
+## Sprint: Theme-Aware Footer Logo
+**Date:** 2026-09-23
+**Status:** Complete
+
+- Footer: dark `logo.png` (current) / light `logodark.png` via `useTheme()`.
+- Size `h-14 w-auto object-contain` unchanged; no Footer redesign.
+
+### Files changed
+`src/components/Footer.tsx`
+
+---
+
+## Sprint: Favicon Correction
+**Date:** 2026-09-23
+**Status:** Complete
+
+- `index.html`: old `/vite.svg` → `/src/assets/FAVICON.png` (`type="image/png"`).
+- Build emits hashed `FAVICON-*.png`. Only `index.html` touched.
+
+### Files changed
+`index.html`
+
+---
+
+## Sprint: Social Share / Open Graph Setup
+**Date:** 2026-09-23
+**Status:** Complete
+**Domain:** `https://theproxyshop.vercel.app` — applied to canonical / `og:url` / `og:image` / `twitter:image` in `index.html`.
+
+- Title: **The Proxy Shop**
+- Description: Curated menswear for everyday confidence — shirts, trousers, hoodies and shoes selected to work together and wear well.
+- OG: title, description, type=website, url, image, image:alt, site_name.
+- Twitter: card=summary_large_image, title, description, image.
+- Canonical homepage link added.
+- `src/assets/og-image.png` **copied** to `public/og-image.png` → public path `/og-image.png` → `https://theproxyshop.vercel.app/og-image.png`. Source asset preserved.
+
+### Files changed
+`index.html`, `public/og-image.png`
+
+---
+
+## Sprint: About Page Redesign (One-Founder Brand Truth)
+**Date:** 2026-09-23
+**Status:** Complete
+**Scope:** About page only. Navbar/homepage/hero/Supabase/cart untouched. No visual QA.
+
+### Structure
+Hero → Brand perspective (dark) → What we focus on (typographic rows + staggered images) → Founder → Closing CTA.
+
+### Content
+- Full rewrite; removed multi-person team grid, mission/vision icon cards, unsupported origin/manufacturing claims.
+- One founder only; no invented name/bio/departments.
+- Config centralized in `src/lib/aboutContent.ts`.
+
+### Images (direct URLs used)
+1. `https://i.pinimg.com/1200x/cc/9c/90/cc9c9002ef9b5f6443430630c5fe0464.jpg`
+2. `https://i.pinimg.com/1200x/bc/c1/65/bcc1650022c9b4cc47da9a6d19568084.jpg`
+3. `https://i.pinimg.com/736x/90/69/5f/90695fa80c5d5c5c961bde445315293c.jpg`
+4. `https://i.pinimg.com/736x/ff/76/e5/ff76e59ea8a82d325d84f30d18381cd1.jpg`
+- Pinterest pin page **not scraped**; stored only as `pendingImageUrl` config placeholder.
+- **Founder.png slot:** imported `src/assets/founder.png` into `aboutContent.founder.image` (placeholder frame path retained if image is ever removed).
+
+### Verification
+- `tsc` clean · `lint` 0 errors.
+
+### Files changed
+`src/pages/About.tsx`, `src/lib/aboutContent.ts`
+
+---
+
+## Files NOT modified (project-wide, cumulative)
+- Supabase schema/migrations (beyond rebrand migration), auth, checkout, payments, orders, admin.
+- CartContext, ProductCard, QuickViewModal, Shop filtering, cart quantity logic.
+- Palette prefixes remain `ghana-*`.
+- Hero scroll architecture / hero image URLs (presentation-only changes in designated sprints).
+- Fit Collections / brand-section image URLs after introduction.
+
+---
+
+## Open follow-ups
+- Run `20251107000000_add_variants_and_rebrand.sql` manually in Supabase; replace `.env` placeholders.
+- Replace Footer `logo.png` (5.8 MB) with optimised asset (bundle weight).
+- Stale `.kilo/worktrees/tree-nest/` worktree causes pre-existing lint noise — out of scope.
+- ~~**Insert production domain** in `index.html` (`YOUR-DOMAIN.example`) for OG/canonical absolute URLs.~~ — **done** (`https://theproxyshop.vercel.app`).
+- ~~Add `src/assets/founder.png` and set `aboutContent.founder.image`~~ — **done** (founder portrait wired into About).
+- Optional breakpoint screenshot matrix — explicitly skipped across sprints.
+- Admin external-image preview/resolution architecture — still deferred (not built).
