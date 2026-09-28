@@ -21,6 +21,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import logoHeader from '../assets/logo-header.png';
 import logoDark from '../assets/logodark.png';
+import { GlitchBrand } from './GlitchBrand';
 
 interface NavLink {
   name: string;
@@ -198,19 +199,15 @@ export function Navbar() {
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="md:hidden fixed inset-0 z-[60] flex h-[100dvh] flex-col bg-ghana-light text-ghana-black dark:bg-ghana-dark dark:text-white"
           >
-            {/* Header row inside open menu: logo + controls + close */}
+            {/* Header row inside open menu: brand mark + controls + close */}
             <div className="flex h-20 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
               <Link
                 to="/"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green rounded-lg"
+                className="flex min-w-0 items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green rounded-lg"
                 aria-label="The Proxy Shop — go to homepage"
               >
-                <img
-                  src={logoSrc}
-                  alt="The Proxy Shop"
-                  className="h-14 w-auto object-contain"
-                />
+                <GlitchBrand size="menu" />
               </Link>
 
               <div className="flex items-center gap-3">

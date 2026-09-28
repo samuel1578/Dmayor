@@ -1,0 +1,247 @@
+/* GlitchBrand — pure-CSS chromatic glitch mark for "THE PROXY SHOP".
+   Theme-aware: tokens flip with Tailwind's `.dark` class on <html>.
+   NOTE: this file is unlayered CSS, so it wins equal-specificity ties
+   against `@tailwind utilities` — never put display/visibility utilities
+   on elements styled here; wrap them instead. */
+
+.glitch {
+  /* Light surface (page) */
+  --glitch-bg: #fffdf5;
+  --glitch-fg: #111111;
+  --glitch-red: #ff1f4b;
+  --glitch-cyan: #00e5ff;
+  --glitch-size: clamp(0.9rem, 0.6vw + 0.7rem, 1.5rem);
+
+  position: relative;
+  display: inline-block;
+  padding: 0.08em 0;
+  font-family: Manrope, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--glitch-size);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--glitch-fg);
+  background-color: var(--glitch-bg);
+  /* Barely-there chromatic aberration on the resting base layer */
+  text-shadow:
+    -0.015em 0 rgba(255, 31, 75, 0.22),
+    0.015em 0 rgba(0, 229, 255, 0.22);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Display sizes — declared after .glitch so the variable override wins.
+   The ramp is viewport-based (≈1.6x the fixed md size at 1440px, capped by
+   the 42% narrative pane); only the floor differs, so tight mobile corners
+   stay clear of the copy. */
+.sizeLg {
+  --glitch-size: clamp(1.15rem, 3.6vw - 0.45rem, 5rem);
+}
+
+.sizeCorner {
+  --glitch-size: clamp(0.9rem, 3.6vw - 0.45rem, 5rem);
+}
+
+/* Mobile menu header — the mark shares its 80px row with three 40px
+   controls + gaps (144px) inside the 32px gutter, so the wordmark has
+   100vw - 176px. 9vw tracks its 10.59em advance against that space;
+   the floor protects 320px screens, the cap stays inside the row. */
+.sizeMenu {
+  --glitch-size: clamp(0.8rem, calc(9vw - 1rem), 3.25rem);
+}
+
+/* Dark surface (page) */
+:global(.dark) .glitch {
+  --glitch-bg: #0a0a0a;
+  --glitch-fg: #fffdf5;
+}
+
+/* Card-surface modifier — masks against white / #111111 containers.
+   Declared after the rules above so it wins at equal specificity. */
+.onCard {
+  --glitch-bg: #ffffff;
+}
+
+:global(.dark) .onCard {
+  --glitch-bg: #111111;
+}
+
+/* Brand-yellow surface (Home newsletter CTA). Light is the flat token;
+   dark matches `bg-ghana-yellow dark:bg-opacity-10` composited over #0a0a0a. */
+.onBrand {
+  --glitch-bg: #fcd116;
+}
+
+:global(.dark) .onBrand {
+  --glitch-bg: #221e0b;
+}
+
+/* ---- duplicated layers ---------------------------------------- */
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  /* Mirror the base box padding so each slice lands pixel-exact on the
+     base text before clip-path cuts it down to a horizontal band. */
+  padding: inherit;
+  background-color: var(--glitch-bg);
+  color: var(--glitch-fg);
+  pointer-events: none;
+  will-change: clip-path, transform;
+}
+
+.glitch::before {
+  text-shadow: -0.04em 0 var(--glitch-red);
+  animation: glitch-slice-a 2.3s steps(1, end) infinite;
+}
+
+.glitch::after {
+  text-shadow: 0.04em 0 var(--glitch-cyan);
+  animation: glitch-slice-b 3.1s steps(1, end) infinite;
+}
+
+/* steps(1, end) holds each frame, so the slices hard-cut instead of
+   gliding. Two coprime durations keep the layers out of phase. */
+
+@keyframes glitch-slice-a {
+  0% {
+    clip-path: inset(0 0 86% 0);
+    transform: translate3d(-3px, 0, 0);
+  }
+  10% {
+    clip-path: inset(34% 0 52% 0);
+    transform: translate3d(4px, 0, 0);
+  }
+  20% {
+    clip-path: inset(64% 0 22% 0);
+    transform: translate3d(-6px, 0, 0);
+  }
+  30% {
+    clip-path: inset(12% 0 74% 0);
+    transform: translate3d(5px, 1px, 0);
+  }
+  40% {
+    clip-path: inset(48% 0 38% 0);
+    transform: translate3d(-4px, -1px, 0);
+  }
+  50% {
+    clip-path: inset(76% 0 8% 0);
+    transform: translate3d(6px, 0, 0);
+  }
+  60% {
+    clip-path: inset(22% 0 64% 0);
+    transform: translate3d(-7px, 1px, 0);
+  }
+  70% {
+    clip-path: inset(56% 0 30% 0);
+    transform: translate3d(3px, -1px, 0);
+  }
+  80% {
+    clip-path: inset(4% 0 90% 0);
+    transform: translate3d(-5px, 0, 0);
+  }
+  90% {
+    clip-path: inset(40% 0 46% 0);
+    transform: translate3d(7px, 1px, 0);
+  }
+  100% {
+    clip-path: inset(84% 0 2% 0);
+    transform: translate3d(-3px, 0, 0);
+  }
+}
+
+@keyframes glitch-slice-b {
+  0% {
+    clip-path: inset(70% 0 12% 0);
+    transform: translate3d(5px, 0, 0);
+  }
+  10% {
+    clip-path: inset(16% 0 70% 0);
+    transform: translate3d(-6px, 0, 0);
+  }
+  20% {
+    clip-path: inset(16% 0 70% 0);
+    transform: translate3d(-6px, 0, 0);
+  }
+  30% {
+    clip-path: inset(52% 0 34% 0);
+    transform: translate3d(4px, -1px, 0);
+  }
+  40% {
+    clip-path: inset(88% 0 0 0);
+    transform: translate3d(-3px, 0, 0);
+  }
+  50% {
+    clip-path: inset(6% 0 82% 0);
+    transform: translate3d(6px, 1px, 0);
+  }
+  60% {
+    clip-path: inset(36% 0 50% 0);
+    transform: translate3d(-5px, 0, 0);
+  }
+  70% {
+    clip-path: inset(36% 0 50% 0);
+    transform: translate3d(-5px, 0, 0);
+  }
+  80% {
+    clip-path: inset(60% 0 26% 0);
+    transform: translate3d(7px, 0, 0);
+  }
+  90% {
+    clip-path: inset(28% 0 58% 0);
+    transform: translate3d(-4px, 1px, 0);
+  }
+  100% {
+    clip-path: inset(78% 0 6% 0);
+    transform: translate3d(3px, 0, 0);
+  }
+}
+
+/* ---- mobile sticky brand block -------------------------------- */
+
+.stickyBar {
+  --glitch-nav-h: 5rem; /* Navbar mobile height (h-20) */
+
+  position: sticky;
+  top: calc(var(--glitch-nav-h) + 1px); /* clear the navbar's 1px border */
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  min-height: 3.25rem;
+  /* Full-bleed inside the page gutter — mirrors AccountLayout mobile nav */
+  margin-inline: -1rem;
+  padding: 0.6rem 1rem;
+  background-color: var(--glitch-bg);
+  border-bottom: 2px solid #b8860b;
+  box-shadow: 0 14px 28px -20px rgba(0, 0, 0, 0.7);
+}
+
+.stickyBar .glitch {
+  --glitch-size: clamp(1.05rem, 4.5vw, 1.4rem);
+}
+
+@media (min-width: 640px) {
+  .stickyBar {
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+  }
+}
+
+/* Desktop keeps the hero-row variant only */
+@media (min-width: 768px) {
+  .stickyBar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch::before,
+  .glitch::after {
+    content: none;
+    animation: none;
+  }
+}

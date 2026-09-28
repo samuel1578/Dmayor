@@ -11,6 +11,7 @@ import { QuickViewModal } from '../components/QuickViewModal';
 import { ScrollyHero } from '../components/hero/ScrollyHero';
 import { BrandValueSection } from '../components/home/BrandValueSection';
 import { FitCollections } from '../components/home/FitCollections';
+import { GlitchBrand } from '../components/GlitchBrand';
 import {
   listFeaturedProducts,
   type CatalogueProductSummary,
@@ -80,7 +81,15 @@ export function Home() {
       <BrandValueSection />
 
       {/* Featured Products Section */}
-      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8">
+      <section className="relative py-16 md:py-24 px-4 sm:px-6 lg:px-8">
+        {/* Decorative brand mark — lives in the section's top padding band,
+            so the centred heading and product grid are untouched */}
+        <div
+          aria-hidden="true"
+          className="absolute top-4 right-4 sm:top-5 sm:right-6 md:top-6 lg:right-8"
+        >
+          <GlitchBrand size="corner" />
+        </div>
         <div className="relative max-w-7xl mx-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -220,7 +229,15 @@ export function Home() {
       <FitCollections />
 
       {/* CTA Section */}
-      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-ghana-yellow dark:bg-opacity-10">
+      <section className="relative py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-ghana-yellow dark:bg-opacity-10">
+        {/* Decorative brand mark — top-left on mobile, bottom-right on
+            desktop; both land in the section's own padding band */}
+        <div
+          aria-hidden="true"
+          className="absolute top-4 left-4 sm:top-5 sm:left-6 md:top-auto md:left-auto md:bottom-6 md:right-6 lg:right-8"
+        >
+          <GlitchBrand size="corner" surface="brand" />
+        </div>
         <div className="max-w-3xl mx-auto text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}

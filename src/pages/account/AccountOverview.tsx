@@ -5,6 +5,7 @@ import { Check, Minus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { countAddresses } from '../../lib/account/addresses';
+import { GlitchBrand } from '../../components/GlitchBrand';
 
 /**
  * Account Overview (Phase D3) — real data only.
@@ -50,118 +51,129 @@ export function AccountOverview() {
   const completed = checks.filter((check) => check.done).length;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="font-display text-4xl text-ghana-black sm:text-5xl dark:text-white">
-        Hello, {displayName}
-      </h1>
-      <p className="mt-3 text-sm text-ghana-black/60 dark:text-white/60">
-        Your details, saved addresses and cart — all in one place.
-      </p>
+    <>
+      {/* Mobile — solid brand block pinned under the navbar while cards scroll */}
+      <GlitchBrand variant="sticky" />
 
-      {profileError && (
-        <div
-          role="alert"
-          className="mt-8 rounded-lg border border-ghana-black/10 p-5 text-sm text-ghana-black/70 dark:border-white/10 dark:text-white/70"
-        >
-          <p>{profileError}</p>
-          <button
-            type="button"
-            onClick={() => void refreshProfile()}
-            className="mt-3 text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
-          >
-            Try again
-          </button>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <h1 className="font-display text-4xl text-ghana-black sm:text-5xl dark:text-white">
+            Hello, {displayName}
+          </h1>
+          {/* Desktop — glitched brand mark, right-aligned in the hero row */}
+          <div className="hidden md:ml-auto md:block">
+            <GlitchBrand />
+          </div>
         </div>
-      )}
+        <p className="mt-3 text-sm text-ghana-black/60 dark:text-white/60">
+          Your details, saved addresses and cart — all in one place.
+        </p>
 
-      {/* Real counts — addresses and cart */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
-            Saved addresses
-          </p>
-          <p className="mt-2 font-display text-3xl text-ghana-black dark:text-white">
-            {addressCount === null ? '—' : addressCount}
-          </p>
+        {profileError && (
+          <div
+            role="alert"
+            className="mt-8 rounded-lg border border-ghana-black/10 p-5 text-sm text-ghana-black/70 dark:border-white/10 dark:text-white/70"
+          >
+            <p>{profileError}</p>
+            <button
+              type="button"
+              onClick={() => void refreshProfile()}
+              className="mt-3 text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Real counts — addresses and cart */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
+              Saved addresses
+            </p>
+            <p className="mt-2 font-display text-3xl text-ghana-black dark:text-white">
+              {addressCount === null ? '—' : addressCount}
+            </p>
+            <Link
+              to="/account/addresses"
+              className="mt-3 inline-block text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              Manage addresses
+            </Link>
+          </div>
+
+          <div className="rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
+              Items in cart
+            </p>
+            <p className="mt-2 font-display text-3xl text-ghana-black dark:text-white">{itemCount}</p>
+            <Link
+              to="/cart"
+              className="mt-3 inline-block text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              View cart
+            </Link>
+          </div>
+        </div>
+
+        {/* Profile completion — real fields only */}
+        <div className="mt-6 rounded-lg border border-ghana-black/10 p-5 sm:p-6 dark:border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-2xl text-ghana-black dark:text-white">
+              Profile completion
+            </h2>
+            <span className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
+              {completed} of {checks.length} complete
+            </span>
+          </div>
+
+          <ul className="mt-5 space-y-3 text-sm">
+            {checks.map((check) => (
+              <li
+                key={check.label}
+                className="flex items-center justify-between gap-4 border-b border-ghana-black/5 pb-3 last:border-0 last:pb-0 dark:border-white/5"
+              >
+                <span className="flex items-center gap-3 text-ghana-black dark:text-white">
+                  <span
+                    className={`flex h-5 w-5 items-center justify-center rounded-full ${
+                      check.done ? 'bg-ghana-green text-white' : 'bg-ghana-black/10 text-ghana-black/50 dark:bg-white/10 dark:text-white/50'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {check.done ? <Check size={12} strokeWidth={3} /> : <Minus size={12} strokeWidth={3} />}
+                  </span>
+                  {check.label}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50">
+                  {check.done ? 'Complete' : 'Add now'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Link
+            to="/shop"
+            className="btn-primary bg-ghana-green text-white disabled:opacity-60"
+          >
+            Continue shopping
+          </Link>
+          <Link
+            to="/account/profile"
+            className="rounded-lg border border-ghana-black/15 px-5 py-3 text-xs uppercase tracking-[0.16em] text-ghana-black transition-colors duration-200 hover:border-ghana-green hover:text-ghana-green dark:border-white/20 dark:text-white"
+          >
+            Manage profile
+          </Link>
           <Link
             to="/account/addresses"
-            className="mt-3 inline-block text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            className="rounded-lg border border-ghana-black/15 px-5 py-3 text-xs uppercase tracking-[0.16em] text-ghana-black transition-colors duration-200 hover:border-ghana-green hover:text-ghana-green dark:border-white/20 dark:text-white"
           >
             Manage addresses
           </Link>
         </div>
-
-        <div className="rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
-            Items in cart
-          </p>
-          <p className="mt-2 font-display text-3xl text-ghana-black dark:text-white">{itemCount}</p>
-          <Link
-            to="/cart"
-            className="mt-3 inline-block text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
-          >
-            View cart
-          </Link>
-        </div>
-      </div>
-
-      {/* Profile completion — real fields only */}
-      <div className="mt-6 rounded-lg border border-ghana-black/10 p-5 sm:p-6 dark:border-white/10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl text-ghana-black dark:text-white">
-            Profile completion
-          </h2>
-          <span className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
-            {completed} of {checks.length} complete
-          </span>
-        </div>
-
-        <ul className="mt-5 space-y-3 text-sm">
-          {checks.map((check) => (
-            <li
-              key={check.label}
-              className="flex items-center justify-between gap-4 border-b border-ghana-black/5 pb-3 last:border-0 last:pb-0 dark:border-white/5"
-            >
-              <span className="flex items-center gap-3 text-ghana-black dark:text-white">
-                <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full ${
-                    check.done ? 'bg-ghana-green text-white' : 'bg-ghana-black/10 text-ghana-black/50 dark:bg-white/10 dark:text-white/50'
-                  }`}
-                  aria-hidden="true"
-                >
-                  {check.done ? <Check size={12} strokeWidth={3} /> : <Minus size={12} strokeWidth={3} />}
-                </span>
-                {check.label}
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50">
-                {check.done ? 'Complete' : 'Add now'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Actions */}
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        <Link
-          to="/shop"
-          className="btn-primary bg-ghana-green text-white disabled:opacity-60"
-        >
-          Continue shopping
-        </Link>
-        <Link
-          to="/account/profile"
-          className="rounded-lg border border-ghana-black/15 px-5 py-3 text-xs uppercase tracking-[0.16em] text-ghana-black transition-colors duration-200 hover:border-ghana-green hover:text-ghana-green dark:border-white/20 dark:text-white"
-        >
-          Manage profile
-        </Link>
-        <Link
-          to="/account/addresses"
-          className="rounded-lg border border-ghana-black/15 px-5 py-3 text-xs uppercase tracking-[0.16em] text-ghana-black transition-colors duration-200 hover:border-ghana-green hover:text-ghana-green dark:border-white/20 dark:text-white"
-        >
-          Manage addresses
-        </Link>
-      </div>
-    </motion.div>
+      </motion.div>
+    </>
   );
 }

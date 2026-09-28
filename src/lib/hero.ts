@@ -37,7 +37,7 @@ export interface HeroImageMotion {
 }
 
 export const heroOpening = {
-  /** Text eyebrow removed — opening uses logo-header.png in the narrative. */
+  /** Text eyebrow removed — opening is signed by the GlitchBrand mark. */
   eyebrow: '',
   title: 'Menswear,\nselected with\nintention.',
   description:

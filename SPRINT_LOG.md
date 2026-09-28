@@ -2,6 +2,8 @@
 
 Running log of all sprints completed in this project.
 
+**Repository:** https://github.com/samuel1578/Dmayor
+
 ---
 
 ## Sprint: Baseline Investigation
@@ -850,3 +852,34 @@ Run `supabase/migrations/007_customer_addresses.sql` in the Supabase SQL editor 
 - Replace Footer `logo.png` (5.8 MB) with the optimised asset (bundle weight).
 - Stale `.kilo/worktrees/tree-nest/` worktree causes pre-existing lint noise — not in scope.
 - Optional breakpoint screenshot matrix — explicitly skipped across sprints.
+
+---
+
+## 2026-09-28 10:21:38 UTC — Sprint: Glitch Brand System (site-wide rollout)
+**Date/Time:** 2026-09-28 10:21:38 UTC
+**Status:** Complete — all checks green; changes are in the working tree, **not yet committed**
+**Repo:** https://github.com/samuel1578/Dmayor (branch `master`, last commit `0dac088 HOMEBASE`)
+**Scope:** Brand wordmark treatment across the account dashboard, scrolly hero, homepage sections and the fullscreen mobile menu. Desktop Navbar logo, Footer, Supabase, cart, checkout, auth logic and hero scroll architecture untouched. No screenshots / Playwright / Puppeteer (none available in this environment).
+
+### New component — `src/components/GlitchBrand.tsx` + `GlitchBrand.module.css`
+- Pure-CSS chromatic glitch wordmark for **THE PROXY SHOP** — no images, no canvas, no JS animation.
+- Props: `text` (default `THE PROXY SHOP`), `size` (`md` | `lg` | `corner` | `menu`), `surface` (`page` | `card` | `brand`), `variant` (`inline` | `sticky`), `className`.
+- **Masking rule:** `::before` / `::after` re-render the text via `attr(data-text)` and paint an opaque `--glitch-bg` that must match the underlying container in both themes; `clip-path: inset()` slices cut them to horizontal bands. Two coprime animations (2.3s / 3.1s, `steps(1, end)` → hard cuts) with `translate3d(-7px…+7px)` offsets; chromatic shadows red `-0.04em` / cyan `+0.04em` on the slices, faint aberration at rest on the base layer.
+- **Theme tokens:** light page `#FFFDF5` / dark `#0A0A0A` (default); `.onCard` → `#FFFFFF` / `#111111`; `.onBrand` → `#FCD116` / `#221E0B` (dark value = `bg-ghana-yellow dark:bg-opacity-10` composited over `#0a0a0a`, verified in the built CSS).
+- **Sizes:** `md` `clamp(0.9rem, 0.6vw + 0.7rem, 1.5rem)` (dashboard) · `lg` `clamp(1.15rem, 3.6vw - 0.45rem, 5rem)` (hero opening masthead) · `corner` `clamp(0.9rem, 3.6vw - 0.45rem, 5rem)` (page marks — chapters, closing sign-off, homepage sections; ≈44.6px at 1440) · `menu` `clamp(0.8rem, calc(9vw - 1rem), 3.25rem)` (mobile menu header, derived from the row budget `100vw − 32px gutter − 144px controls`).
+- **`sticky` variant:** `.stickyBar` — sticky at `calc(5rem + 1px)` (clears the `h-20` navbar + 1px border), `z-index: 40`, full-bleed `-mx-4 px-4 sm:-mx-6 sm:px-6`, 2px gold bottom rule; `display: none` from 768px up.
+- **A11y:** `role="img"` + `aria-label` on the span makes it an a11y leaf (inner text marked `aria-hidden`, so the duplicated pseudo text is never announced twice); `pointer-events: none` + `user-select: none`; `prefers-reduced-motion: reduce` → `content: none; animation: none`.
+- **Constraint documented in-file:** module CSS is unlayered, so it beats Tailwind utilities at equal specificity — never put display/position utilities on a module-styled element; wrap it instead.
+
+### Placements rolled out
+1. **Account dashboard** — `src/pages/account/AccountOverview.tsx`: hero-row mark on desktop (wrapped in `hidden md:block` so mobile keeps its own layout) + a mobile-only `<GlitchBrand variant="sticky" />` fragment rendered **outside** the `motion.div`.
+2. **Scrolly hero** — `src/components/hero/HeroNarrative.tsx` (replaces the `logo-header.png` masthead, whose `useTheme`/logo imports were removed): opening `size="lg"` in-flow; four chapter marks via the `chapterBrandPlacement` map, each wrapped in `absolute z-10` divs (the module's `position: relative` had hijacked Tailwind offsets and pushed the Shoes mark over its CTA — fixed): mobile → shirts top-right, trousers bottom-right, hoodies top-left, shoes bottom-right; desktop → shirts bottom-left, trousers top-left, hoodies bottom-left, shoes top-right. Closing page: the `heroClosing.eyebrow` text replaced by an in-flow `size="corner"` mark (`order-last mt-5` on mobile, eyebrow slot `md:order-first md:mb-5` on desktop) so it matches its chapter partners instead of the small `md` default.
+3. **Homepage sections** — `src/pages/Home.tsx` (both sections given `relative`; marks `aria-hidden` + `size="corner"` so they sit in the padding bands, heading/grid/input untouched): **Featured Pieces** → top-right (`top-4 right-4 sm:top-5 sm:right-6 md:top-6 lg:right-8`); **newsletter CTA** → top-left on mobile, bottom-right on desktop (`md:top-auto md:left-auto md:bottom-6 md:right-6 lg:right-8`) with `surface="brand"`.
+4. **Fullscreen mobile menu** — `src/components/Navbar.tsx`: the header `<img>` (was `h-14`) replaced by `<GlitchBrand size="menu" />` inside the same home `Link` (`aria-label` retained, `min-w-0` guard so the mark can never push the three control buttons off-screen). Desktop navbar logo and the Footer logo are untouched.
+
+### Verification
+- `npm run typecheck` clean · `npm run lint` 0 errors (6 pre-existing warnings, out of scope) · `npm run build` success — run after each placement pass.
+- Built-CSS spot checks: `_onCard_` / `_onBrand_` / `.dark .` scoping and rule order verified (token rules come after `.glitch` so the surface wins); `_sizeMenu_` emitted as `clamp(.8rem, calc(9vw - 1rem), 3.25rem)`; desktop logo still bundled (`logo-header` ref present), mobile-menu `h-14 w-auto` ref gone (the remaining one belongs to `Footer.tsx`).
+
+### Files changed (working tree, uncommitted)
+`src/components/GlitchBrand.tsx` (new), `src/components/GlitchBrand.module.css` (new), `src/components/hero/HeroNarrative.tsx`, `src/lib/hero.ts`, `src/pages/account/AccountOverview.tsx`, `src/pages/Home.tsx`, `src/components/Navbar.tsx`

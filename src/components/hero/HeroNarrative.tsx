@@ -2,9 +2,7 @@ import type { MotionValue } from 'framer-motion';
 import { motion, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
-import logoHeader from '../../assets/logo-header.png';
-import logoDark from '../../assets/logodark.png';
+import { GlitchBrand } from '../GlitchBrand';
 import {
   heroChapters,
   heroClosing,
@@ -13,6 +11,25 @@ import {
   type HeroLayout,
   type HeroWindow,
 } from '../../lib/hero';
+
+/**
+ * Brand-mark placement per hero page. Mobile and desktop deliberately sit in
+ * different corners: marks always take the side the copy does NOT use, so the
+ * centred narrative block never collides with them inside `overflow-hidden`.
+ */
+const chapterBrandPlacement: Record<string, string> = {
+  // copy left  → mobile top-right, desktop bottom-left
+  shirts:
+    'top-3 right-5 sm:right-8 md:top-auto md:right-auto md:bottom-8 md:left-10 lg:left-12',
+  // copy left  → mobile bottom-right, desktop top-left
+  trousers:
+    'bottom-3 right-5 sm:right-8 md:bottom-auto md:right-auto md:top-8 md:left-10 lg:left-12',
+  // copy right (bleed-left) → mobile top-left, desktop bottom-left
+  hoodies: 'top-3 left-5 sm:left-8 md:top-auto md:bottom-8 md:left-10 lg:left-12',
+  // copy left  → mobile bottom-right, desktop top-right
+  shoes:
+    'bottom-3 right-5 sm:right-8 md:bottom-auto md:top-8 md:right-10 lg:right-12',
+};
 
 interface HeroNarrativeProps {
   progress: MotionValue<number>;
@@ -105,25 +122,16 @@ function chapterAlign(layout: HeroLayout): string {
 }
 
 export function HeroNarrative({ progress, reduced }: HeroNarrativeProps) {
-  const { theme } = useTheme();
-  const logoSrc = theme === 'dark' ? logoHeader : logoDark;
-
   return (
     <div className="relative h-full w-full">
-      {/* Opening — logo signature + editorial cover copy */}
+      {/* Opening — glitched brand signature + editorial cover copy */}
       <NarrativeShell
         progress={progress}
         window={heroTimeline.openingNarrative}
         reduced={reduced}
         className="justify-end pb-6 md:justify-center md:pb-0"
       >
-        <img
-          src={logoSrc}
-          alt="The Proxy Shop"
-          width={280}
-          height={400}
-          className="mb-4 h-16 w-auto object-contain object-left md:mb-6 md:h-[96px] lg:h-[108px]"
-        />
+        <GlitchBrand size="lg" className="self-start mb-4 md:mb-6" />
         <h1 className="hero-type-display mb-4 text-hero-opening font-medium text-ghana-black dark:text-white md:mb-6 whitespace-pre-line">
           {heroOpening.title}
         </h1>
@@ -179,19 +187,30 @@ export function HeroNarrative({ progress, reduced }: HeroNarrativeProps) {
               }`}
             />
           </Link>
+
+          {/* Corner brand mark. Positioning lives on this wrapper: the mark
+              itself is `position: relative` (its pseudo layers need an
+              anchor), which would otherwise turn the offsets above into
+              relative nudges and drop the mark on top of the CTA. */}
+          <div className={`absolute z-10 ${chapterBrandPlacement[chapter.id]}`}>
+            <GlitchBrand size="corner" />
+          </div>
         </NarrativeShell>
       ))}
 
-      {/* Closing — campaign copy */}
+      {/* Closing — campaign copy. Brand mark signs off the page:
+          bottom of the stack on mobile, eyebrow slot on desktop. */}
       <NarrativeShell
         progress={progress}
         window={heroTimeline.closingNarrative}
         reduced={reduced}
         className="items-start text-left justify-center"
       >
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.34em] text-ghana-green md:mb-5">
-          {heroClosing.eyebrow}
-        </p>
+        <GlitchBrand
+          text={heroClosing.eyebrow}
+          size="corner"
+          className="order-last mt-5 md:order-first md:mt-0 md:mb-5"
+        />
         <h2 className="hero-type-display mb-3 text-hero-closing font-medium text-ghana-black dark:text-white md:mb-5">
           {heroClosing.title}
         </h2>
