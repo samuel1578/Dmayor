@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { aboutContent } from '../lib/aboutContent';
+import { GlitchBrand } from '../components/GlitchBrand';
 
 const rise = {
   initial: { opacity: 0, y: 18 },
@@ -98,7 +99,9 @@ export function About() {
       <section aria-labelledby="about-hero-heading" className="relative overflow-hidden">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 pb-14 pt-10 sm:px-6 md:pb-20 md:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:px-8 lg:pb-24">
           <motion.div {...rise}>
-            <Eyebrow>{hero.eyebrow}</Eyebrow>
+            <Eyebrow>
+              {hero.eyebrow} <GlitchBrand size="lg" />
+            </Eyebrow>
             <h1
               id="about-hero-heading"
               className="hero-type-display mb-5 whitespace-pre-line font-medium text-brand-heading text-ghana-black dark:text-white md:mb-7"

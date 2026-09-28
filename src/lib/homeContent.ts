@@ -40,7 +40,7 @@ export const fitCollections = {
     'Curated combinations for the days you want getting dressed to feel effortless.',
   cta: {
     label: 'Explore All Fits',
-    href: '/collections',
+    href: '/shop',
   },
   images: [
     {

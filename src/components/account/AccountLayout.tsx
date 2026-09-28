@@ -17,6 +17,8 @@ const navItems = [
   { to: '/account', label: 'Overview', end: true },
   { to: '/account/profile', label: 'Profile', end: false },
   { to: '/account/addresses', label: 'Addresses', end: false },
+  // Phase E2: the real order history replaces the disabled placeholder.
+  { to: '/account/orders', label: 'Orders', end: false },
 ];
 
 const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -57,13 +59,6 @@ export function AccountLayout() {
                 {item.label}
               </NavLink>
             ))}
-            <span
-              aria-disabled="true"
-              title="Available after your first order"
-              className="relative cursor-not-allowed whitespace-nowrap px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-ghana-black/35 after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent dark:text-white/35"
-            >
-              Orders
-            </span>
           </nav>
         </div>
 
@@ -78,18 +73,6 @@ export function AccountLayout() {
                   {item.label}
                 </NavLink>
               ))}
-
-              {/* Orders — Phase E placeholder, deliberately not a link */}
-              <span
-                aria-disabled="true"
-                title="Available after your first order"
-                className="block cursor-not-allowed rounded-lg px-4 py-2.5 text-sm text-ghana-black/35 dark:text-white/35"
-              >
-                Orders
-                <span className="mt-0.5 block text-[10px] uppercase tracking-[0.14em]">
-                  Available after your first order
-                </span>
-              </span>
             </nav>
 
             <div className="mt-6 space-y-1 border-t border-ghana-black/10 pt-6 dark:border-white/10">

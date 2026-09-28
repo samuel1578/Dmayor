@@ -97,6 +97,12 @@ interface CartContextType {
   cartNotice: string | null;
   dismissNotice: () => void;
   revalidateCart: () => Promise<void>;
+  /**
+   * Reloads the authenticated cart from the database. Used after checkout:
+   * the order RPC clears the cart server-side, so this makes the UI (and the
+   * navbar badge) reflect the committed state instead of guessing.
+   */
+  refreshCart: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -899,6 +905,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCartNotice(null);
   }, []);
 
+  const refreshCart = useCallback(async () => {
+    const uid = currentUserIdRef.current;
+    if (!uid) return;
+    await reloadCustomerCart(uid);
+  }, [reloadCustomerCart]);
+
   /**
    * Re-checks every saved line against the live catalogue: product still
    * active, variant still active, stock and current effective price. When the
@@ -1006,6 +1018,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cartNotice,
       dismissNotice,
       revalidateCart,
+      refreshCart,
     }),
     [
       items,
@@ -1021,6 +1034,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cartNotice,
       dismissNotice,
       revalidateCart,
+      refreshCart,
     ],
   );
 

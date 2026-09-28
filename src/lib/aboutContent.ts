@@ -2,7 +2,8 @@ import founderPng from '../assets/founder.png';
 
 export const aboutContent = {
   hero: {
-    eyebrow: 'ABOUT THE PROXY SHOP',
+    // Brand half of the kicker is rendered by <GlitchBrand /> in About.tsx
+    eyebrow: 'ABOUT',
     title: 'Style should feel considered,\nnot complicated.',
     description:
       'The Proxy Shop is built around a simple idea: getting dressed well should feel easier when the right pieces already work together. We focus on menswear that feels wearable, confident and intentional — without the noise.',

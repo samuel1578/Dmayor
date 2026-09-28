@@ -839,6 +839,7 @@ Run `supabase/migrations/007_customer_addresses.sql` in the Supabase SQL editor 
 ---
 
 ## Open follow-ups (current)
+> **Superseded — see “Open follow-ups (current — after Phase E4)” at the end of this file.** The list below is kept as the historical D3-era snapshot.
 - **Run `supabase/migrations/004_admin_catalogue_policies.sql` manually in Supabase** — Phase B code is inert until it is applied (Phase A admin/auth SQL is already applied and is not in this repo).
 - ~~Migrate the public storefront off legacy `products.images` / `products.stock` onto the normalized model.~~ — **complete (C1 → C3)**: the public frontend no longer reads either field; PDP, Shop, Home, ProductCard, QuickView and Cart all use `product_images` / `product_variants`.
 - ~~**Phase C2:** variant-aware cart storage, cart quantity/stock enforcement, cart de-duplication by product + variant.~~ — **done.**
@@ -857,8 +858,8 @@ Run `supabase/migrations/007_customer_addresses.sql` in the Supabase SQL editor 
 
 ## 2026-09-28 10:21:38 UTC — Sprint: Glitch Brand System (site-wide rollout)
 **Date/Time:** 2026-09-28 10:21:38 UTC
-**Status:** Complete — all checks green; changes are in the working tree, **not yet committed**
-**Repo:** https://github.com/samuel1578/Dmayor (branch `master`, last commit `0dac088 HOMEBASE`)
+**Status:** Complete — all checks green; committed as `4da48ed UP3T3`
+**Repo:** https://github.com/samuel1578/Dmayor (branch `master`, commit before this sprint: `0dac088 HOMEBASE`)
 **Scope:** Brand wordmark treatment across the account dashboard, scrolly hero, homepage sections and the fullscreen mobile menu. Desktop Navbar logo, Footer, Supabase, cart, checkout, auth logic and hero scroll architecture untouched. No screenshots / Playwright / Puppeteer (none available in this environment).
 
 ### New component — `src/components/GlitchBrand.tsx` + `GlitchBrand.module.css`
@@ -881,5 +882,409 @@ Run `supabase/migrations/007_customer_addresses.sql` in the Supabase SQL editor 
 - `npm run typecheck` clean · `npm run lint` 0 errors (6 pre-existing warnings, out of scope) · `npm run build` success — run after each placement pass.
 - Built-CSS spot checks: `_onCard_` / `_onBrand_` / `.dark .` scoping and rule order verified (token rules come after `.glitch` so the surface wins); `_sizeMenu_` emitted as `clamp(.8rem, calc(9vw - 1rem), 3.25rem)`; desktop logo still bundled (`logo-header` ref present), mobile-menu `h-14 w-auto` ref gone (the remaining one belongs to `Footer.tsx`).
 
-### Files changed (working tree, uncommitted)
+### Files changed (committed in `4da48ed UP3T3`)
 `src/components/GlitchBrand.tsx` (new), `src/components/GlitchBrand.module.css` (new), `src/components/hero/HeroNarrative.tsx`, `src/lib/hero.ts`, `src/pages/account/AccountOverview.tsx`, `src/pages/Home.tsx`, `src/components/Navbar.tsx`
+
+---
+
+## 2026-09-28 10:48:14 UTC — Sprint: Glitch Brand in Page Heroes (Blog · About · Contact)
+**Date/Time:** 2026-09-28 10:48:14 UTC
+**Status:** Complete — all checks green; changes in the working tree, not yet committed
+**Repo:** https://github.com/samuel1578/Dmayor (last commit `4da48ed UP3T3`)
+**Scope:** The three page heroes named in the brief. Desktop Navbar logo, Footer logo, hero scroll architecture, Shop/cart/auth untouched. No screenshots / Playwright / Puppeteer.
+
+### Blog (`src/pages/Blog.tsx`)
+- `h1` "The Proxy Shop Stories" → `<GlitchBrand size="lg" surface="ink" />` with **Stories** on its own line (`mt-1 block md:mt-2`) — accessible name still "THE PROXY SHOP Stories".
+- `size="lg"` = the hero's big ramp: 44.6px at 1440 (matches `text-5xl` 48px on the same masthead), 18.4px mobile floor.
+
+### About (`src/pages/About.tsx`, `src/lib/aboutContent.ts`)
+- `hero.eyebrow` config changed `'ABOUT THE PROXY SHOP'` → `'ABOUT'`; the JSX now renders `{hero.eyebrow} <GlitchBrand size="lg" />`, so screen readers still get "ABOUT THE PROXY SHOP" and the brand half is the mark.
+- Sits on the page surface → default tokens, no new surface modifier.
+
+### Contact (`src/pages/Contact.tsx`) — hero redesigned around the mark
+- The glitch mark now leads the band (`size="lg" surface="red"`) above the unchanged **Get in Touch** heading and subcopy.
+
+### Mask-vs-gradient mechanics (the reason the bands changed)
+- A mark paints an opaque slice mask, so on a full-width gradient it would read as a flat colour rectangle. Both hero bands now use Tailwind colour-stop positions:
+  - Blog: `bg-gradient-to-r from-ghana-black from-70% to-ghana-green to-100%`
+  - Contact: `bg-gradient-to-r from-ghana-red from-70% to-ghana-green to-100%`
+- Left **70%** is therefore solid (all copy lives there; worst case the mark reaches 66% of viewport width at 320px, 59% at 2560), the gold sweep keeps the right third — the band's look is preserved, masks are pixel-exact.
+
+### New surface tokens (`GlitchBrand.module.css`)
+- `.onInk` / `:global(.dark) .onInk` → `--glitch-bg: #111111` (ghana-black), `.onRed` / `.dark .onRed` → `#ce1126` (ghana-red); both set `--glitch-fg: #ffffff` to match the white hero copy. Dark overrides repeat the value because these bands do **not** change colour with the theme.
+- `surface` prop union extended: `'page' | 'card' | 'brand' | 'ink' | 'red'`.
+
+### Verification
+- `npm run typecheck` clean · `npm run lint` 0 errors (6 pre-existing warnings) · `npm run build` success.
+- Built-CSS checks: `.from-ghana-black` (index 37478) precedes `.to-ghana-green` (38886) so stops resolve to `#111111 70%, #B8860B 100%`; `.dark ._onInk_` (1079) follows `.dark ._glitch_` (827) so the band tokens win; `.onInk`/`.onRed` sit after the base `.glitch` rule.
+
+### Files changed
+`src/pages/Blog.tsx`, `src/pages/About.tsx`, `src/pages/Contact.tsx`, `src/lib/aboutContent.ts`, `src/components/GlitchBrand.tsx`, `src/components/GlitchBrand.module.css`
+
+---
+
+## 2026-09-28 10:48:14 UTC — Sprint: Collections Page Retirement
+**Date/Time:** 2026-09-28 10:48:14 UTC
+**Status:** Complete — all checks green; changes in the working tree, not yet committed
+**Repo:** https://github.com/samuel1578/Dmayor (last commit `4da48ed UP3T3`)
+**Scope:** Public Collections page + its navigation entries. Admin surface, Supabase `collections` table and homepage Fit Collections section untouched.
+
+### Deleted / removed
+- `src/pages/Collections.tsx` — **deleted** (the page queried Supabase `collections` and rendered an empty state).
+- `src/App.tsx` — `/collections` route and `Collections` import removed.
+- `src/components/Navbar.tsx` — Collections entry dropped from the shared `navLinks` array, which feeds **both** the desktop nav and the fullscreen hamburger, so both lost it in one edit (menu numbering now `01 Home … 05 Contact`); the now-unused `Layers` icon import removed.
+- `src/components/Footer.tsx` — "Collections" link removed from the Shop column.
+
+### Dead-link fixes
+- `src/lib/homeContent.ts` — homepage **Explore All Fits** CTA repointed `/collections` → `/shop`.
+- `public/_redirects` — added `/collections /shop 301` **above** the `/* /index.html 200` SPA fallback, so old URLs and bookmarks land on Shop instead of a blank screen.
+
+### Deliberately left in place
+- Admin sidebar's disabled `/admin/collections` "Soon" entry, the `collections` table type in `src/lib/supabase.ts`, and the Admin dashboard collections count — backend/admin surface, outside this request.
+
+### Verification
+- `npm run typecheck` clean · `npm run lint` 0 errors (6 pre-existing warnings) · `npm run build` success (2040 modules, was 2041).
+- Repo-wide grep: zero storefront `/collections` links remain in `src/`; the only remaining match in the bundle is the disabled admin entry. `dist/_redirects` ships both rules in order.
+
+### Files changed
+`src/pages/Collections.tsx` (deleted), `src/App.tsx`, `src/components/Navbar.tsx`, `src/components/Footer.tsx`, `src/lib/homeContent.ts`, `public/_redirects`
+
+---
+
+## Sprint: Phase E1 — Orders Foundation + Checkout
+**Date/Time:** 2026-09-28 10:53:27 UTC
+**Status:** Complete (pending the manual migration below) — working tree, not committed
+**Scope:** Order store + a real, atomic, authenticated checkout with server-authoritative totals. **NOT built:** Paystack (no SDK, no keys, no init, no webhook, no verification endpoint), admin order management, customer order-history list, refunds, carrier/shipment integration, email notifications, analytics, guest checkout, order notes UI. No screenshots / Playwright / Puppeteer (manual QA by the user).
+
+### SQL — `supabase/migrations/008_orders_checkout_foundation.sql` (new, local only — NOT applied remotely)
+Forward-only, idempotent, guarded by preconditions on `cart_items` / `set_updated_at()`. Nothing in `001`–`007` was edited.
+
+**`public.commerce_settings`** — single-row config (`id boolean primary key default true check (id)`) read **only** by the SECURITY DEFINER functions: `currency` (`GHS`), `shipping_flat_fee`, `free_shipping_threshold`, `tax_rate`, `prices_include_tax`, `rules_confirmed`, `updated_at`. **PROVISIONAL:** defaults are `0 / null / 0 / true / false` — no delivery fee and no tax are applied, and `rules_confirmed = false` makes `/checkout` disclose that. RLS enabled with **no policies** and all grants revoked → the browser cannot read or write it at all.
+
+**`public.orders`** — `id` uuid pk, `order_number` text unique not null, `user_id` uuid not null → `auth.users(id)` ON DELETE CASCADE, `status` (default `pending`), `payment_status` (default `unpaid`), `subtotal`/`shipping_amount`/`tax_amount`/`total_amount` numeric(12,2), `currency` (default `GHS`), delivery **snapshot** columns `recipient_name`, `phone`, `address_line1`, `address_line2`, `city`, `region`, `country`, `postal_code`, optional `customer_note`, `created_at`/`updated_at`.
+- CHECKs: `status in ('pending','confirmed','processing','shipped','delivered','cancelled')`; `payment_status in ('unpaid','paid','failed','refunded')`; amounts `>= 0`; `total_amount = subtotal + shipping_amount + tax_amount`. Fulfilment status and payment status are **separate domains** and never combined.
+- **No FK to the saved address.** The delivery columns are a snapshot copied at checkout, because a customer may later edit or delete `customer_addresses` and past orders must not move.
+
+**`public.order_items`** — `id` uuid pk, `order_id` → `orders(id)` ON DELETE CASCADE, **nullable** `product_id` / `variant_id` → `products` / `product_variants` ON DELETE **SET NULL** (reporting links only), snapshots `product_name`, `product_slug`, `variant_sku`, `size`, `colour`, `unit_price`, `quantity`, `line_total`, optional `image_url`, `created_at`. CHECKs: `quantity > 0`, amounts `>= 0`, `line_total = round(unit_price * quantity, 2)`. Snapshots are authoritative for historical display — an archived product, deleted variant, renamed product or new price cannot rewrite a past order.
+
+**Order numbers** — `public.order_number_seq` (revoked from every client role) + `TPS-YYYY-000001` built with `lpad(nextval(...)::int, 6, '0')` **inside** the checkout RPC. Race-safe; **no `count(*) + 1`** anywhere. Gaps are possible when a checkout rolls back, which is the accepted cost of being race-safe. UUIDs are never customer-facing.
+
+**RLS + grants (customers)** — `orders`: SELECT only, `auth.uid() = user_id`, `to authenticated`. `order_items`: SELECT only, `exists (select 1 from orders o where o.id = order_items.order_id and o.user_id = auth.uid())`. **No INSERT/UPDATE/DELETE policies at all**, and INSERT/UPDATE/DELETE are revoked from `authenticated`; `anon`/PUBLIC get nothing. A customer can never read another customer's orders, mutate a status or payment status, or delete an order.
+
+**`public.preview_cart_order()`** — `stable`, SECURITY DEFINER, `set search_path = public, pg_temp`, returns jsonb: current lines (with snapshots + primary image), `settings`, `subtotal`, `shipping`, `tax`, `total`, `purchasableQuantity` and a `blockers[]` list. Read-only (never reserves or decrements) and used for display **and** the final revalidation.
+
+**`public.create_order_from_cart(p_address_id uuid, p_customer_note text default null)`** — `volatile`, SECURITY DEFINER, `set search_path = public, pg_temp`, returns the created order rows. Atomic 15-step flow: authenticated caller → load cart → product active → variant active → variant belongs to the line's product → stock ≥ quantity → resolve current effective price → subtotal → shipping/tax from config → snapshot the caller's own address → insert order + items → decrement variant stock → sync legacy `products.stock` → **clear the cart** → return id + number. Any failure raises before/at that point and the whole transaction rolls back. Error contract: `'<code>|<human sentence>'` (`not_authenticated`, `config_missing`, `address_required`, `note_too_long`, `cart_empty`, `product_unavailable`, `variant_unavailable`, `variant_product_mismatch`, `insufficient_stock`). `payment_status` is hard-coded `'unpaid'` — there is no payment path in E1.
+
+### Inventory — locking and decrement
+- Authoritative source stays `product_variants.stock`; `products.stock` is **never** read for the decision.
+- The validation loop selects the cart joined to `product_variants v` … `order by v.id for update of v`, so every variant row is **row-locked in a deterministic order** and two customers racing for the last unit serialise instead of overselling: the loser gets `insufficient_stock` and its whole transaction rolls back. Locking only `v` (never the left-joined `products`) keeps admin edits from deadlocking against checkout.
+- Decrement is set-based after validation (`stock = stock - quantity` for the locked rows); the `product_variants_stock_check (stock >= 0)` constraint is the final guard against negatives.
+- Legacy compatibility: after the decrement, `products.stock` is **re-derived** from `SUM(active variant stock)` for the affected products only — the same rule the Phase B Admin sync uses, so the admin screens stay consistent without `products.stock` ever becoming authoritative.
+
+### Client data layer — `src/lib/checkout/orders.ts` (new)
+`previewCartOrder()` → `rpc('preview_cart_order')`; `placeOrder(addressId)` → `rpc('create_order_from_cart', { p_address_id })`; `getOrderByNumber(number)` → `orders` + embedded `order_items` (RLS scopes it to the owner; a foreign number resolves to `null`, no existence leak); `checkoutErrorMessage()` maps the `'<code>|<sentence>'` contract to customer copy (known codes surface the server-authored sentence; network/unknown failures get a generic “nothing was charged, your cart is unchanged” message); `ORDER_STATUS_LABELS` / `PAYMENT_STATUS_LABELS` for display. All rows are parsed defensively (`asText` / `asNumber` / `asRow`) — no `any`, no trusted shapes. `src/lib/supabase.ts` gains `OrderStatus`, `OrderPaymentStatus`, `OrderRow`, `OrderItemRow` and their `Database` entries (`OrderInsert`/`OrderUpdate` are `never`, since only the RPC may write).
+
+### Routes
+- `/checkout` and `/order-confirmation/:orderNumber` are nested inside the existing **`AuthenticatedRoute`** (which sits inside the public `Layout`, so the navbar/Footer still render). A guest hitting **Proceed to Checkout** is redirected to `/login` with `state.from = '/checkout'` and returned to checkout after signing in. `CustomerLogin` already honoured `from`; `CustomerSignup` now honours it too (and the login ↔ signup links carry it), so creating an account mid-checkout also lands back on checkout. **No guest checkout.**
+- `AccountLayout`'s disabled Orders placeholder is untouched — order history is a later phase.
+
+### Checkout page (`src/pages/Checkout.tsx`, new)
+- Loads saved addresses (`listAddresses`, default preselected) and the server preview in one parallel pass. No saved address → explicit CTA to `/account/addresses` and Place Order stays disabled.
+- Cart summary renders the **server** lines: product, size, colour, quantity, current unit price, line total, plus the server's per-line `issue` when a line is not purchasable.
+- Totals are the server's `subtotal` / `shipping` / `tax` (row shown only when > 0) / `total`, plus a disclosure panel while `rulesConfirmed` is false: “Delivery and tax rules have not been finalised for the store yet. The amounts above are the current unconfirmed defaults — no delivery fee and no tax are being added.”
+- Blockers (price/stock/availability) are listed with **Re-check cart**; the button says **Place Order** (never “Pay Now”), with a footer stating that the order is recorded against the account as unpaid and no card details are collected.
+- **§13 final revalidation:** on Place Order the preview is re-fetched first. Blockers → the page updates and refuses to submit. Any change in the displayed fingerprint (lines, quantities, unit prices, subtotal, shipping, tax, total) → the page refreshes to the new figures and asks the customer to review and click again, so a stale total is never silently accepted. (A last-millisecond change is still safe: the RPC recomputes everything server-side and would reject it.)
+
+### Order confirmation (`src/pages/OrderConfirmation.tsx`, new)
+Order number, placed date (localised), order status (`Pending`), payment status (`Unpaid`), item snapshots, totals, delivery snapshot and an optional note. Copy never claims a payment succeeded (“No payment has been taken”, “Payment is still outstanding”). CTAs: **View Order** — an in-page `#order-detail` anchor, because E1 has no order-history surface to link to — and **Continue Shopping**. Loading / error+retry / not-found states included.
+
+### Cart clearing rule (§15)
+The cart is cleared **inside the checkout transaction, after** the order row, the order items and the stock decrement have all succeeded — a failed checkout leaves the cart intact (rollback), and there is no code path that clears it earlier. On success the client calls the new `CartContext.refreshCart()` (re-reads `cart_items`), so the navbar badge reflects the committed server state instead of guessing.
+
+### Cart UI cleanup (§16 + §1)
+- **Removed** the hardcoded `₵50` delivery fee, the invented `Tax (10%)` line, the hardcoded `Grand total`, “Secure checkout with Paystack”, “Free returns within 30 days” and “Fast shipping across Ghana”. None of those was a confirmed business rule and no Paystack integration exists yet.
+- The summary now shows **Subtotal**, a neutral **“Delivery & tax — Calculated at checkout”** row and **Total** with the caption “Before delivery and any applicable tax.” The right-hand notes are factual system statements only (checkout is for signed-in customers and the cart follows them into the account; delivery details come from saved addresses). Visual design is otherwise unchanged.
+- **Proceed to Checkout** is now a real link to `/checkout` (and a disabled button while any line is unavailable).
+
+### Business-rule safety (§1)
+All commerce maths lives in exactly one place: the `commerce_settings` row + the two SECURITY DEFINER functions. The browser cannot supply prices, stock, totals, status or payment_status; `products.stock` is never authoritative; the service-role key is nowhere near the Vite app. Unconfirmed values are centralised, defaulted to neutral (no charge) and explicitly flagged (`rules_confirmed`) rather than being turned into policy.
+
+### What remains manual
+- Run `supabase/migrations/008_orders_checkout_foundation.sql` in the Supabase SQL editor (after `007`). If PostgREST does not see the new table/RPC immediately, run `notify pgrst, 'reload schema';`.
+- **Confirm the real commerce rules before `rules_confirmed` is set true** — see the open questions below.
+- Full E1 QA is manual (no browser automation in this repo).
+
+### Verification
+`npm run typecheck` clean · `npm run lint` 0 errors (the same 6 pre-existing warnings: 5 `react-refresh` + 1 `CartContext` `exhaustive-deps`) · `npm run build` success. No screenshots / Playwright / Puppeteer.
+
+### Files changed
+`supabase/migrations/008_orders_checkout_foundation.sql` (new), `src/lib/checkout/orders.ts` (new), `src/pages/Checkout.tsx` (new), `src/pages/OrderConfirmation.tsx` (new), `src/pages/Cart.tsx`, `src/contexts/CartContext.tsx` (`refreshCart`), `src/lib/supabase.ts`, `src/App.tsx`, `src/pages/auth/CustomerLogin.tsx`, `src/pages/auth/CustomerSignup.tsx`, `SPRINT_LOG.md`
+
+### Manual next step
+Run `supabase/migrations/008_orders_checkout_foundation.sql`, then the shortest functional test: sign in → add a variant to the cart → `/checkout` → (add an address first if the CTA shows) → **Place Order** → expect the order confirmation with a `TPS-2026-000001` reference, status `Pending`, payment `Unpaid`, delivery snapshot and totals; then check `/cart` is empty and the navbar badge is `0`, and that `product_variants.stock` dropped by the ordered quantity.
+
+---
+
+## Commerce Decisions / Open Questions
+**Recorded, unanswered, not invented.** No shipping fee, tax treatment, returns policy, payment method or reservation rule has been implemented on assumption: the current behaviour is *no fee, no tax, unpaid, stock deducted at order creation*, with `commerce_settings.rules_confirmed = false` and a visible disclosure on `/checkout` until these are answered.
+
+1. Is checkout restricted to authenticated customers permanently, or will guest checkout be supported later? *(E1 is authenticated-only by decision.)*
+2. What is the actual shipping rule? — fixed fee? by city/region? free above a threshold? *(Config supports a flat fee plus an optional free-shipping threshold; nothing is charged today.)*
+3. Is tax charged separately? — if yes, the exact rate? — and are catalogue prices tax-inclusive or tax-exclusive? *(Config supports a rate plus `prices_include_tax`; nothing is charged today.)*
+4. Is “free returns within 30 days” an actual store policy? *(Removed from the cart UI; nothing replaces it.)*
+5. What payment methods will exist before Paystack automation? *(None implemented — every order is created `unpaid`.)*
+6. Should unpaid orders reserve/deduct stock immediately, or only after an Admin marks payment paid? *(E1 deducts at order creation.)*
+7. How long may an unpaid order remain before it is cancelled and restocked? *(No expiry, no automatic restock.)*
+8. Can customers cancel pending orders themselves? *(No — customers have no write access to orders.)*
+9. Should order notes be supported at checkout? *(`customer_note` exists in the schema and the RPC accepts it, but the checkout UI deliberately collects no note.)*
+10. Are delivery instructions needed separately from the postal address? *(Not modelled.)*
+
+**Added during E2 (still unanswered — nothing was invented for them):**
+
+11. **Customer cancellation policy.** May a customer cancel a pending order themselves, and if so which statuses are cancellable, does it restock, and does it require a reason? *(Not implemented: E2 is read-only — there is no cancel button anywhere, exactly as the brief requires while this is unresolved.)*
+12. **Status transition wording.** What customer-facing labels should the fulfilment steps use? E2 shows the internal words (`Pending`, `Confirmed`, `Processing`, `Shipped`, `Delivered`, `Cancelled`) verbatim. Does the store prefer copy like “Preparing”, “On its way” or “Completed”?
+13. **Should customers see internal statuses at all?** Are `pending`/`confirmed`/`processing` internal operational states that should collapse into one customer-facing “In progress”, or should every step be shown?
+14. **Refund visibility.** Should a `refunded` payment status be shown to the customer as-is, and should failed payment attempts be visible at all? *(E2 currently displays all four payment statuses verbatim, since the database is the source of truth.)*
+15. **Tracking number / carrier requirements.** Will orders ever carry a courier name and tracking number for display? Nothing is modelled and the UI deliberately says it is not live tracking.
+
+**Added during E3 (still unanswered — nothing was invented for them):**
+
+16. **Should marking Paid automatically move Pending → Confirmed?** E3 keeps them fully independent: paying advances nothing, and an Admin confirms the order separately (which is deliberately the current behaviour, not an assumption).
+17. **Can Admin mark Paid → Unpaid again, or should reversal require a special action?** Mis-clicks happen, so E3 currently allows any of the four payment states to be set, each behind the same manual update — with confirmation only for `paid` and `refunded`. `paid_at` is cleared when the order leaves `paid`, because no audit history is kept.
+18. **What should happen to stock when an unpaid order is cancelled?** Directly related to Q6/Q7. E3 restocks nothing in any case and surfaces the situation on the order screen.
+19. **Should a cancelled paid order automatically become Refunded, or stay Paid until a refund is confirmed?** E3 never couples them — cancelling leaves the payment status untouched.
+20. **Do we need internal Admin notes per order?** The only note today is the customer's own `customer_note`; there is no internal note field.
+21. **Do we need a payment reference field for bank/mobile-money/manual verification?** Nothing is stored today, so there is no way to record that a specific MoMo/bank reference paid a specific order.
+22. **Do we need shipment tracking number and carrier fields before launch?** Not modelled (ties to Q15).
+23. **Which order statuses should customers see vs internal-only statuses?** The Admin UI shows all six and the customer timeline shows the same six verbatim (ties to Q12/Q13).
+
+_Also raised by E3 implementation, deliberately left alone:_ whether the operational timestamps should ever grow into a real status-history/audit table (E3 keeps only the latest timestamp per state), and whether the Admin transition map needs an explicit override path for corrections (E3 has none, so a mistake cannot be walked back through the UI).
+
+_Also worth confirming later (not blocking E1):_ whether `orders.user_id` should remain `ON DELETE CASCADE` if account deletion is ever introduced (financial records usually prefer restrict/anonymise); whether unpaid orders should expire (ties to Q7); and whether the customer-facing order reference shape (`TPS-YYYY-NNNNNN`) should continue past 999999 orders in a year.
+
+---
+
+## Sprint: Phase E2 — Customer Orders + Tracking
+**Date/Time:** 2026-09-28 10:58:13 UTC
+**Status:** Complete — working tree, not committed. **No new migration required** (E1's RLS and schema already supported this).
+**Scope:** Customer-facing order history, order detail and a restrained status timeline, plus real order data on the account overview. **NOT built:** admin order management, Paystack/payment automation/webhooks, carrier or GPS tracking, email notifications, refunds UI, customer order editing and **customer cancellation** (its rule is still an open commerce decision). No screenshots / Playwright / Puppeteer.
+
+### Routes (`src/App.tsx`)
+Both nested under the existing `/account` → `AccountLayout` → `AuthenticatedRoute` (session-only guard, no per-page auth checks):
+- `/account/orders` → `AccountOrders` (history)
+- `/account/orders/:orderNumber` → `AccountOrderDetail` (one order)
+
+The placeholder comment for the deferred Orders route is gone, and `AccountLayout`'s disabled “Orders — Available after your first order” placeholder (desktop **and** mobile) is replaced by a real `NavLink` — the nav array is shared by both navs, so it became one entry (`Overview · Profile · Addresses · Orders`).
+
+### Customer order queries — `src/lib/account/orders.ts` (new)
+One clean data layer; no scattered Supabase calls and no N+1:
+- `listMyOrders(userId)` — one `orders` select with an embedded `order_items(quantity)`, newest first. Item count is the sum of quantities (pieces) and `lineCount` the number of lines, from that single request.
+- `getRecentOrder(userId)` — the same select, newest first, `limit 1` + `maybeSingle`.
+- `countMyOrders(userId)` — head count, no row payload.
+- `getMyOrder(userId, orderNumber)` — one `orders` select with its embedded `order_items`.
+- Also exported: `ORDER_STATUS_LABELS`, `PAYMENT_STATUS_LABELS`, `FULFILMENT_STEPS`, `ACTIVE_ORDER_STATUSES`, `ORDER_FILTERS`, `orderMatchesFilter`, `countOrdersByFilter`, `formatOrderDate`, `formatItemCount`.
+- Every row is parsed defensively (`asRow`/`asText`/`asNumber`) with status narrowing via explicit value lists — a malformed value degrades to `pending`/`unpaid` rather than propagating.
+- **Moved out of `src/lib/checkout/orders.ts`** so an order is read from exactly one place: the order-detail query, its mapping and the status/payment labels now live here; `lib/checkout/orders.ts` stays checkout-only (preview, place order, checkout error mapping) and kept just its local status-narrowing lists. `OrderConfirmation` now reads through this layer too.
+
+### History UI — `src/pages/account/AccountOrders.tsx` (new)
+- Compact cards (no tables, so phones are unaffected): order number, date, item count, total, fulfilment status and `Payment: <status>` with a “View order” affordance; the whole card is a link to the detail route. Newest first (server-side `order by created_at desc`).
+- Filters **All / Active / Delivered / Cancelled** with live counts, applied to the loaded list so switching costs no extra requests. `Active` = pending, confirmed, processing, shipped.
+- Loading / error + retry / empty state (with a “Start shopping” CTA) / per-filter empty state.
+
+### Detail UI — `src/pages/account/AccountOrderDetail.tsx` (new)
+Order number + placed date (with time), then the shared body. “Back to orders”/“Continue shopping” actions. Loading, error + retry and a **not-found** state that reads the same whether the number does not exist or belongs to another customer.
+
+### Shared body — `src/components/account/OrderDetailView.tsx` (new)
+Rendered by **both** `/account/orders/:orderNumber` and `/order-confirmation/:orderNumber` — one implementation, one look:
+- **Progress + payment, kept separate:** the timeline, then a distinct payment-status block whose copy is a factual reading of the recorded value (`Unpaid` → “Nothing has been collected for this order yet.”, plus “Payment is recorded separately from order progress.”). Fulfilment is never inferred from payment, and vice-versa.
+- **Items** straight from the `order_items` SNAPSHOT columns: name, size, colour, SKU, quantity, unit price, line total, image when available. Names are deliberately **not** linked, so an archived/renamed product cannot create a dead or misleading link, and nothing is re-resolved from the current catalogue.
+- **Delivery** from the order's address snapshot (with the customer note when one exists), and **totals** (`subtotal` / `delivery` / `tax` only when > 0 / `total`) with the recorded currency.
+
+### Status timeline — `src/components/account/OrderStatusTimeline.tsx` (new)
+`Pending → Confirmed → Processing → Shipped → Delivered` as an ordered list: completed steps are filled green with a check, the current step is ring-emphasised with `aria-current="step"` and labelled “Current”, upcoming steps are muted (“Upcoming”). Responsive by construction — a vertical list on phones, five columns from `sm`. **`cancelled` is never a step on that line**: it renders as its own terminal block (“This order was cancelled and its progress stops here.”). Heading is **“Order progress”** with the explicit line “The status recorded on this order — not live courier tracking” — no GPS, no map, no courier claim.
+
+### Account overview integration — `src/pages/account/AccountOverview.tsx`
+Real order data only, loaded in the same parallel pass as the existing address count (each fetch fails independently and degrades gracefully): a third count card **“Orders placed”** (`countMyOrders`) linking to `/account/orders`, and a **“Most recent order”** panel (`getRecentOrder`) showing order number, date, item count, total, fulfilment status and payment status, linking to the order. With no orders it shows an honest empty state (“You have not placed an order yet.” + “Start shopping”). Still no invented spend, points or tier.
+
+### Order confirmation integration (§9)
+`OrderConfirmation` now uses the shared `OrderDetailView` and its **View Order** CTA links to the durable `/account/orders/:orderNumber` page (the E1 in-page anchor is gone). Its header shows order number + placed date; status and payment now come from the shared body. It also reads through `lib/account/orders.ts` and gained an “All orders” action.
+
+### Security / RLS behaviour (§11)
+- RLS remains the only authority: `orders` is `select … using (auth.uid() = user_id)` and `order_items` is `select … using (exists (… o.user_id = auth.uid()))`; there are **no** insert/update/delete policies for customers and those verbs are revoked, so E2 added **no** new permissions and no new schema.
+- Every helper also filters by the session user id, so a hand-edited `/account/orders/<other-customer-number>` URL resolves to `null` — the page shows the same “Order not found” state as a number that does not exist. Nothing reveals whether another customer's order exists.
+- Customers stay read-only: no status change, no payment change, no totals editing, no order-item editing, no delete and **no cancellation** anywhere in the UI or the data layer.
+
+### Verification
+`npm run typecheck` clean · `npm run lint` 0 errors (the same 6 pre-existing warnings: 5 `react-refresh` + 1 `CartContext` `exhaustive-deps`) · `npm run build` success. No screenshots / Playwright / Puppeteer.
+
+### Files changed
+`src/lib/account/orders.ts` (new), `src/components/account/OrderStatusTimeline.tsx` (new), `src/components/account/OrderDetailView.tsx` (new), `src/pages/account/AccountOrders.tsx` (new), `src/pages/account/AccountOrderDetail.tsx` (new), `src/pages/account/AccountOverview.tsx`, `src/components/account/AccountLayout.tsx`, `src/App.tsx`, `src/pages/OrderConfirmation.tsx`, `src/lib/checkout/orders.ts` (reads moved out), `SPRINT_LOG.md`
+
+### Manual next step
+No migration to run (E2 reuses E1's schema and policies). Shortest test sequence: sign in → place one order through `/checkout` (or use an account that already has one) → `/account` (Orders placed count + Most recent order) → `/account/orders` (card with number, date, item count, total, statuses; try the All/Active/Delivered/Cancelled filters) → open the order (`Order progress` timeline, Unpaid payment block, item snapshots, delivery snapshot, totals) → then hand-edit the URL to another customer's order number and confirm the not-found state.
+
+---
+
+## Sprint: Phase E3 — Admin Orders + Manual Payment Tracking
+**Date/Time:** 2026-09-28 11:04:00 UTC
+**Status:** Complete (pending the manual migration below) — working tree, not committed
+**Scope:** Admin operations for customer orders: the order queue, one order in full, and manual management of payment state and fulfilment state. **NOT built:** Paystack or any payment automation (no SDK, no keys, no init, no webhook, no verification), email notifications, refunds processing, carrier integration, customer cancellation, and **automatic restocking** (the rule is still unconfirmed — see §7 and the open questions). No screenshots / Playwright / Puppeteer.
+
+### SQL — `supabase/migrations/009_admin_order_operations.sql` (new, local only — NOT applied remotely)
+Forward-only, idempotent, guarded by preconditions on `orders`/`order_items`, `public.is_admin()` (Phase A) and `public.profiles` (005). Nothing in `001`–`008` was edited.
+
+**New columns on `public.orders`** (lightweight operational timestamps, explicitly *not* an audit-event system): `paid_at`, `confirmed_at`, `shipped_at`, `delivered_at`, `cancelled_at` (all nullable `timestamptz`). Each records WHEN the order reached that state; a jump (pending → shipped) backfills the earlier steps so the progression stays coherent. `paid_at` is written only while the order is paid and nulled otherwise, so it always describes current state — there is no history of previous statuses by design.
+
+**New index:** `idx_orders_status_payment_status on public.orders(status, payment_status)` for the admin queue.
+
+**Five admin-only functions**, every one starting with a fail-closed `if not coalesce(public.is_admin(), false) then raise exception 'not_authorized|…'`:
+- `admin_list_orders(p_search, p_status, p_payment_status, p_limit, p_offset)` — server-side search (order number, recipient name, delivery phone, customer full name, customer email — case-insensitive), exact status/payment filters, newest first, limit clamped 1..200. Returns one row per order with `item_count`/`line_count` (aggregated, so no N+1) and the customer's name/email/phone.
+- `admin_get_order(p_order_id)` — jsonb `{ order: {…all order columns…}, items: [...], customer: {name,email,phone} }` via `to_jsonb`, so the client mapper matches the list columns.
+- `admin_set_order_status(p_order_id, p_status)` — validates the transition map below, writes the matching timestamp, returns the updated row. It never touches `payment_status`.
+- `admin_set_order_payment_status(p_order_id, p_payment_status)` — records `unpaid | paid | failed | refunded`, writes/clears `paid_at`, returns the updated row. It never touches `status`.
+- `admin_order_stats()` — real counts only: `total`, `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`, `unpaid`, `paid`, `failed`, `refunded`, plus `paidTotal` = `SUM(total_amount)` over orders currently marked paid.
+
+Grants: `execute` to `authenticated` only (revoked from `public`/`anon`); the internal `is_admin()` check is the real boundary. **No new table privileges and no new policies** — `orders`/`order_items` keep exactly the E1 customer SELECT-only rules, and the customer email is only reachable through the two admin read functions (`auth.users` is never exposed to PostgREST).
+
+### Admin routes
+Both under the existing `/admin` → `AdminRoute` (session + `is_admin()`) → `AdminLayout` shell: `/admin/orders` → `AdminOrders`, `/admin/orders/:id` → `AdminOrderDetail`. `AdminSidebar` now shows a real **Orders** entry (Collections and Blog remain the only deferred items).
+
+### Admin order list (`src/pages/admin/AdminOrders.tsx`)
+Desktop table (Order · Customer · Email · Date · Items · Total · Payment · Status) plus mobile cards, following the existing AdminProducts pattern. Search box debounced 300 ms; **Order status** and **Payment status** selects plus a Clear button. All three run server-side through `admin_list_orders` with a 50-row page and a “Show more” button (only shown when a full page came back), so the query is never unbounded. Newest first. Loading, error + retry, “no orders yet” and “no orders match these filters” states.
+
+### Admin order detail (`src/pages/admin/AdminOrderDetail.tsx`)
+Two-column layout: **Customer** (name, email, phone — name/phone fall back to the delivery snapshot when the profile is empty), **Delivery snapshot** (labelled as a checkout snapshot, with the customer note), **Items** (product, variant, SKU, quantity, unit price, line total, image; labelled as historical snapshot) with the **Totals** footer (subtotal / shipping / tax / total), then the two control cards.
+
+### Manual payment management (§4)
+A select over all four states plus **Update payment status**, which calls the admin RPC. `paid` and `refunded` open a `ConfirmDialog` first (dialog copy states plainly that nothing is charged and no money moves); `unpaid`/`failed` apply directly. The card shows the current state and, when present, “Marked paid …”. Only real states are recorded — no payment transaction is ever invented — and the card states that payment is maintained manually until an automated provider exists.
+
+### Fulfilment + transition rules (§5, §6)
+The card shows the current status, the recorded timestamps, and **only the allowed next steps as buttons** — the database enforces the same map and rejects anything else. `cancelled` is danger-styled and behind a confirm dialog. Terminal states show “This order is in a final state … No further status changes are allowed.”
+
+| From | Allowed → |
+| --- | --- |
+| `pending` | `confirmed`, `cancelled` |
+| `confirmed` | `processing`, `cancelled` |
+| `processing` | `shipped`, `cancelled` |
+| `shipped` | `delivered`, `cancelled` |
+| `delivered` | — (final) |
+| `cancelled` | — (final) |
+
+Backwards moves (e.g. `delivered → processing`) and re-opening a cancelled order are rejected with no override switch (none was specified). **Payment and fulfilment stay independent:** separate cards, separate RPCs, separate columns — marking an order paid never advances fulfilment, and shipping an unpaid order is allowed. Valid combinations such as Unpaid + Pending, Paid + Processing, Paid + Shipped and Refunded + Cancelled are all representable.
+
+### Stock / cancellation behaviour (§7) — surfaced, not invented
+**No restocking is implemented.** E1 deducts stock at order creation, but whether cancellation should return that stock is still an unconfirmed rule, so inventing it would silently move inventory. When an order is `cancelled`, the detail page shows an explicit **“Stock was not restocked”** blocker explaining that stock was deducted at checkout, that the restock rule is unconfirmed, and that variant stock can be adjusted in Products meanwhile. No `restocked_at` column and no restock RPC were added, so there is nothing half-built: when the rule is confirmed it should arrive as its own idempotent migration/RPC (guarded so it can never run twice).
+
+### Customer reflection (§10)
+Nothing extra was needed: the customer order pages read through `lib/account/orders.ts` on mount, and RLS already lets a customer read their own order's new `status`/`payment_status`, so an Admin change appears on `/account/orders/:orderNumber` (and in the list and the overview) on the next load. No realtime subscription, no cache and no refresh hack was added.
+
+### Admin overview (§11)
+`AdminDashboard` now loads `admin_order_stats()` alongside the catalogue counts (independent failure → “—”, never blocks the page) and renders an **Operations** section with real tiles: Pending, Unpaid, Processing, Shipped, Delivered, Cancelled and **Paid order value** (sum over orders currently marked paid), plus a “Manage orders” CTA and an explicit note that these are real counts, that payment is manual, and that nothing is a projected revenue figure. “Orders & payments” was removed from the Deferred list.
+
+### Verification
+`npm run typecheck` clean · `npm run lint` 0 errors (the same 6 pre-existing warnings: 5 `react-refresh` + 1 `CartContext` `exhaustive-deps`) · `npm run build` success. No screenshots / Playwright / Puppeteer.
+
+### Files changed
+`supabase/migrations/009_admin_order_operations.sql` (new), `src/lib/admin/orders.ts` (new), `src/pages/admin/AdminOrders.tsx` (new), `src/pages/admin/AdminOrderDetail.tsx` (new), `src/components/admin/AdminSidebar.tsx`, `src/pages/admin/AdminDashboard.tsx`, `src/lib/admin/format.ts` (`formatAdminDateTime`), `src/App.tsx`, `SPRINT_LOG.md`
+
+### Manual next step
+Run `supabase/migrations/009_admin_order_operations.sql` in the Supabase SQL editor (after `008`); if PostgREST does not see the new functions immediately, run `notify pgrst, 'reload schema';`. Shortest Admin ↔ customer cross-test: sign in as a **customer**, place an order at `/checkout` → sign in as **Admin** → `/admin/orders` (the order appears, newest first; try search by order number / customer email and the status filters) → open it → **Mark as Confirmed**, then set Payment to **Paid** (confirm the dialog) → sign back in as the customer and open `/account/orders/:orderNumber` → confirm the timeline shows Confirmed and the payment block shows Paid.
+
+---
+
+## Sprint: Phase E4 — Checkout / Order UX Polish + Invoice
+**Date/Time:** 2026-09-28 11:34:39 UTC
+**Status:** Complete — working tree, not committed. **No database migration** (E4 is presentation + client generation only).
+**Scope:** Brand signature on the customer commerce surfaces, one global route scroll-restoration rule, and a real downloadable order invoice PDF generated on demand from the order's current recorded state. **Deliberately unchanged:** the order/payment architecture, fulfilment + transition rules, stock/restocking logic, every Admin workflow, and the account area's overall structure. **NOT built:** Paystack or any payment automation, email delivery, carrier tracking, admin invoice UI. No screenshots / Playwright / Puppeteer (manual QA by the user).
+
+### 1. GlitchBrand placements (existing component + tokens, nothing duplicated)
+The existing `GlitchBrand` component was reused as-is — no new glitch CSS, no new surface tokens. Default `page` surface everywhere below, because all five surfaces sit on `bg-ghana-light` / `dark:bg-ghana-dark`. Each mark is wrapped in a plain `div` because the module CSS is unlayered and would beat spacing utilities on the mark itself.
+
+| Surface | Placement | Size |
+| --- | --- | --- |
+| `/checkout` | above the “Checkout” eyebrow, at the top of the page intro | `corner` |
+| `/order-confirmation/:orderNumber` | between the “Order recorded” badge row and the “Thank you — your order is in” heading | `lg` |
+| `/account` | **unchanged** — existing desktop hero-row mark + mobile `sticky` bar kept exactly as they were | `md` / `sticky` |
+| `/account/orders` | above the “Orders” heading | `corner` |
+| `/account/orders/:orderNumber` | above the “Order” eyebrow, clear of the order number, status blocks and timeline | `corner` |
+
+No mark sits on or near an order number, payment status, the status timeline or an action row, the `prefers-reduced-motion` behaviour already inside the component is untouched, and on mobile each mark stays in normal flow (no fixed/overlay positioning), so it can never push actions off-screen.
+
+### 2. ScrollToTop — one global rule, no per-page scroll calls
+New `src/components/ScrollToTop.tsx`, mounted **once** inside `<BrowserRouter>` in `App.tsx` (before `<Routes>`). It uses `useLocation()` + `useNavigationType()`:
+- **`PUSH`/`REPLACE`** (Cart → Checkout, Checkout → Order Confirmation, Orders → Order Detail, admin links, every future result page) → `window.scrollTo({ top: 0, left: 0, behavior: 'auto' })`, so the destination opens at the top.
+- **`POP`** (browser back/forward) → deliberately hands-off, so the browser restores where the customer actually was instead of being yanked to the top.
+- **A hash target** (`#section`) is honoured when the element exists — `scrollIntoView({ block: 'start' })` — and only falls back to top when the hash is not present on that route. (No in-page anchors remain in the app; the old `#order-detail` anchor was already removed in E2, so this is future-proofing.)
+- Instant, not smooth, so it never animates over the scrollytelling hero and respects reduced-motion by simply not animating.
+
+No `window.scrollTo` exists in any page component — the behaviour lives in exactly one place, and future payment-confirmation routes inherit it automatically.
+
+### 3. Invoice generator — `src/lib/orders/invoice.ts` (new)
+**PDF dependency added: `jspdf@^4.2.1`** (the current release line, actively co-maintained, ~416 kB). It is the only PDF dependency, it is browser-side only, and it is **imported dynamically** inside the generator (`const { jsPDF } = await import('jspdf')`), which the build confirms: jsPDF lands in its own lazy chunk and the main bundle contains only the `import()` reference — nothing is downloaded until a customer actually clicks Download Invoice. No screenshots, no page rasterising, no `html2canvas` on the interface, and no order data is ever sent to a third-party service.
+
+Exports: `buildOrderInvoicePdf(order)` (returns the document), `downloadOrderInvoice(order)`, `downloadOrderInvoiceByNumber(userId, orderNumber)` (reads the order through the customer's normal RLS-scoped query first), and `invoiceFileName(orderNumber)`.
+
+**Filename:** `${orderNumber}-invoice.pdf` → `TPS-2026-000001-invoice.pdf`. One stable format, identical paid or unpaid (the state lives inside the document where it belongs).
+
+**Data source (§6):** the document is built from the order's current recorded state at the moment of the download — never cached, never generated or stored at checkout, no new table and no stored artefact. Every value comes from the `orders` / `order_items` SNAPSHOT columns (product name, size, colour, SKU, quantity, unit price, line total, image not used) plus the delivery snapshot. The catalogue is never consulted, so a renamed/repriced/archived product or a removed variant cannot change a past document.
+
+**Document contents:**
+- **Brand** — “THE PROXY SHOP” wordmark with the gold rule (no image asset needed; pure text keeps the PDF small and crisp).
+- **Title** — `ORDER INVOICE`, plus the generation date/time.
+- **Conspicuous payment banner** — a bordered, tinted block spelling the state out in words: `PAYMENT STATUS: UNPAID` / `PAID` / `FAILED` / `REFUNDED`, with a plain-language second line. Red border for anything that is not paid, gold for paid.
+- **Order information** — order number, order date, current **order status** and current **payment status** (both as real text), and the document's generation date/time.
+- **Customer / delivery** — recipient name, phone, and the full delivery address snapshot (with the customer note deliberately excluded to stay inside the standard-font character set).
+- **Items** — one row per snapshot line: product name, size, colour, SKU, quantity, unit price, line total.
+- **Totals** — subtotal, delivery, tax only when greater than zero, and the total, each amount printed as `GHS 1,234.00` (the cedi sign `\u20B5` is not in jsPDF's standard font encoding, so the ISO currency code is used instead of a garbled glyph; a small sanitiser also maps typographic characters to ASCII).
+- **Footer** — “Generated from the order record held by The Proxy Shop.”, the order number, and page numbering; every non-paid document additionally states **“This document does not confirm payment.”** in red on **every** page.
+
+Multi-page safe: item rows page-break with the table header redrawn, and the footer is stamped on every page. Payment/fulfilment state is expressed as text throughout, never colour alone.
+
+### 4. Download Invoice placement + loading/error UX
+One reusable component, `src/components/orders/DownloadInvoiceButton.tsx`, used in all four places, with `primary` / `secondary` / `quiet` variants:
+- **Order Confirmation** — primary action in the confirmation action row (the row was tidied: the redundant “All orders” button was dropped since “View Order” leads to the account order page, which links back).
+- **Account order detail** — primary action in the footer row, above “Back to orders” / “Continue shopping” (the latter changed from solid green to the outline style so there is one primary action).
+- **Orders list** — a restrained `quiet` action on every order card. The card is no longer one big link (nested interactive elements are invalid): the order number and a “View order” link now navigate, next to **Download invoice**.
+- **Account overview** — a single `quiet` action inside the Most recent order panel only; no other account section gained invoice UI.
+
+The button shows **“Preparing invoice…”**, disables itself (`disabled` + `aria-busy`) so repeated clicks do nothing, and on failure shows **“We couldn't prepare the invoice. Please try again.”** — library errors are logged to the console, never surfaced. Its accessible name reads “Download Invoice for order TPS-…”.
+
+### 5. Security (§11)
+The invoice uses only data the customer can already read. `downloadOrderInvoiceByNumber` calls the existing `getMyOrder(userId, orderNumber)` (RLS: `auth.uid() = user_id`), and pages that already hold an order pass that object. No service-role key, no RLS bypass, no elevated grants, **no order data accepted from URL parameters**, and nothing is stored or transmitted. A customer cannot download a document for an order they cannot read.
+
+### 6. Admin (§12)
+Untouched: no Admin behaviour changed and no Admin invoice UI was added. `src/lib/orders/invoice.ts` takes a plain `OrderDetail`, so exposing it in Admin later is a one-line import rather than a refactor.
+
+### Verification
+`npm run typecheck` clean · `npm run lint` 0 errors (the same 6 pre-existing warnings: 5 `react-refresh` + 1 `CartContext` `exhaustive-deps`) · `npm run build` success. Bundle check: jsPDF is emitted as its own lazy chunk (`jspdf.es.min-*.js`, 416 kB) and the main chunk references it only via `await import(…)` — the library is never in the initial download; `html2canvas` / `dompurify` / `canvg` chunks are also emitted but are only requested by jsPDF's unused `html()` path. `npm install` added only `jspdf` + its optional dependencies (240 lockfile lines added, **no existing package version changed**). No screenshots / Playwright / Puppeteer.
+
+### Files changed
+`src/lib/orders/invoice.ts` (new), `src/components/orders/DownloadInvoiceButton.tsx` (new), `src/components/ScrollToTop.tsx` (new), `src/App.tsx`, `src/pages/Checkout.tsx`, `src/pages/OrderConfirmation.tsx`, `src/pages/account/AccountOverview.tsx`, `src/pages/account/AccountOrders.tsx`, `src/pages/account/AccountOrderDetail.tsx`, `package.json`, `package-lock.json`, `SPRINT_LOG.md`
+
+### Manual test (§17)
+1. As a customer, add an item and place an order at `/checkout` — the **confirmation page opens at the top** (even though checkout was scrolled down) and shows the brand mark above the heading.
+2. Click **Download Invoice** → `TPS-2026-000001-invoice.pdf` downloads and reads **PAYMENT STATUS: UNPAID** in a red box, with “This document does not confirm payment.” in the banner and the footer.
+3. As Admin, open the order at `/admin/orders/:id`, **Mark as Confirmed**, then set Payment to **Paid**.
+4. Back as the customer, reload `/account/orders/:orderNumber` (timeline = Confirmed, payment = Paid) and click **Download Invoice** again → the same filename now reads **PAYMENT STATUS: PAID** and **Order status: Confirmed**, i.e. the current recorded state, not the checkout state.
+5. Bonus: click Download Invoice from `/account/orders` and from the account overview’s Most recent order panel — both download without opening the order first.
+
+---
+
+## Current state (after Phase E4)
+**Live and working:** the public storefront on the normalized catalogue model (Home, Shop, PDP, QuickView, variant-aware cart); customer auth + account area (overview, profile, addresses, **order history + order detail with the status timeline**); persistent Supabase cart with guest merge; atomic authenticated checkout (`/checkout` → `/order-confirmation/:orderNumber`); **order invoice PDFs downloaded on demand from current recorded state**; Admin auth + catalogue management + **order operations (manual payment status and validated fulfilment transitions, real operational counts on the dashboard)**; global route scroll restoration; the GlitchBrand brand system across the storefront, account and commerce surfaces. All behind RLS; one shared AuthContext.
+
+- **Supersedes the “Current state (after Phase D3)” snapshot above** for anything commerce-related.
+- **Still not built:** Paystack or any payment automation (payment is manual: unpaid / paid / failed / refunded), payment webhooks/verification, email notifications (order confirmation, shipping, payment), automatic restocking on cancellation, customer-initiated cancellation, refunds processing, carrier/tracking integration, customer order-history **admin** tooling beyond the E3 queue, Collections CRUD, Blog CRUD, password reset UI, wishlist, social login, analytics, newsletter admin.
+- **Migrations in this repo are all manual, local only:** `004`, `005`, `006`, `007`, `008`, `009`. Nothing is applied remotely by the app.
+
+## Open follow-ups (current — after Phase E4)
+- **Run `supabase/migrations/008_orders_checkout_foundation.sql` manually in Supabase** — checkout, orders and the invoice data are inert until it is applied (after `007`).
+- **Run `supabase/migrations/009_admin_order_operations.sql` manually in Supabase** — the Admin order queue, manual payment/fulfilment controls and dashboard operation counts need it (after `008`).
+- **Run `supabase/migrations/004_admin_catalogue_policies.sql` manually in Supabase** if it is still not applied — Phase B admin writes are inert without it.
+- **Confirm the unresolved commerce rules** (see “Commerce Decisions / Open Questions”): shipping/tax, stock reservation, unpaid-order expiry, cancellation, restock-on-cancel, payment references, customer-visible statuses. In particular, **do not set `commerce_settings.rules_confirmed = true` until the real shipping/tax values are decided**, and implement restock-on-cancel as its own idempotent migration when that rule is confirmed.
+- **Legacy columns:** `products.images` / `products.stock` still exist and are still written by the Admin sync (`products.stock` is re-derived from variant stock by the checkout RPC too). A later cleanup migration can drop the compatibility sync first, then the columns.
+- **Bundle weight:** jsPDF is lazy-loaded, so it never affects the initial download; the main chunk is still ~840 kB (gzip ~235 kB) and route-level code splitting remains the biggest remaining win.
+- **Footer `logo.png` (5.8 MB)** should still be replaced with the optimised asset.
+- Deferred sprints: Paystack phase, email notifications, Collections CRUD, Blog CRUD, newsletter admin, password reset UI.
+- Stale `.kilo/worktrees/tree-nest/` worktree causes pre-existing lint noise — not in scope.
+- Optional breakpoint screenshot matrix — explicitly skipped across sprints.

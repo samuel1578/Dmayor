@@ -5,14 +5,26 @@ import { Check, Minus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { countAddresses } from '../../lib/account/addresses';
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  countMyOrders,
+  formatItemCount,
+  formatOrderDate,
+  getRecentOrder,
+  type OrderSummary,
+} from '../../lib/account/orders';
+import { formatGhs } from '../../lib/catalogue/products';
 import { GlitchBrand } from '../../components/GlitchBrand';
+import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceButton';
 
 /**
  * Account Overview (Phase D3) — real data only.
  *
- * Shows the customer's name, email, profile completion, saved-address count
- * and current persistent cart count. Deliberately NO invented order counts,
- * loyalty points, spend or membership tier — those systems do not exist.
+ * Shows the customer's name, email, profile completion, saved-address count,
+ * current persistent cart count and real order data (Phase E2): how many orders
+ * exist and the most recent one, with an honest empty state when there are none.
+ * Deliberately NO invented spend, loyalty points or membership tier.
  */
 
 export function AccountOverview() {
@@ -20,6 +32,9 @@ export function AccountOverview() {
   const { itemCount } = useCart();
 
   const [addressCount, setAddressCount] = useState<number | null>(null);
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+  /** `undefined` = still loading, `null` = loaded and genuinely no orders. */
+  const [recentOrder, setRecentOrder] = useState<OrderSummary | null | undefined>(undefined);
 
   const userId = user?.id ?? null;
 
@@ -34,6 +49,24 @@ export function AccountOverview() {
       .catch((err) => {
         // Overview degrades gracefully — the Addresses page reports load errors.
         console.error('Address count failed:', err);
+      });
+
+    countMyOrders(userId)
+      .then((count) => {
+        if (!cancelled) setOrderCount(count);
+      })
+      .catch((err) => {
+        // Overview degrades gracefully — the Orders page reports load errors.
+        console.error('Order count failed:', err);
+      });
+
+    getRecentOrder(userId)
+      .then((order) => {
+        if (!cancelled) setRecentOrder(order);
+      })
+      .catch((err) => {
+        console.error('Recent order load failed:', err);
+        if (!cancelled) setRecentOrder(null);
       });
 
     return () => {
@@ -66,7 +99,7 @@ export function AccountOverview() {
           </div>
         </div>
         <p className="mt-3 text-sm text-ghana-black/60 dark:text-white/60">
-          Your details, saved addresses and cart — all in one place.
+          Your details, saved addresses, cart and orders — all in one place.
         </p>
 
         {profileError && (
@@ -85,8 +118,8 @@ export function AccountOverview() {
           </div>
         )}
 
-        {/* Real counts — addresses and cart */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        {/* Real counts — addresses, cart and orders */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
             <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
               Saved addresses
@@ -114,6 +147,101 @@ export function AccountOverview() {
               View cart
             </Link>
           </div>
+
+          <div className="rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
+              Orders placed
+            </p>
+            <p className="mt-2 font-display text-3xl text-ghana-black dark:text-white">
+              {orderCount === null ? '—' : orderCount}
+            </p>
+            <Link
+              to="/account/orders"
+              className="mt-3 inline-block text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              View orders
+            </Link>
+          </div>
+        </div>
+
+        {/* Most recent order — real data, or an honest empty state */}
+        <div className="mt-6 rounded-lg border border-ghana-black/10 p-5 sm:p-6 dark:border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-2xl text-ghana-black dark:text-white">
+              Most recent order
+            </h2>
+            <Link
+              to="/account/orders"
+              className="text-[10px] uppercase tracking-[0.22em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              All orders
+            </Link>
+          </div>
+
+          {recentOrder === undefined && (
+            <p className="mt-4 text-sm text-ghana-black/50 dark:text-white/50">
+              Loading your orders…
+            </p>
+          )}
+
+          {recentOrder === null && (
+            <div className="mt-4">
+              <p className="text-sm text-ghana-black/60 dark:text-white/60">
+                You have not placed an order yet.
+              </p>
+              <Link
+                to="/shop"
+                className="mt-3 inline-block text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+              >
+                Start shopping
+              </Link>
+            </div>
+          )}
+
+          {recentOrder && userId && (
+            <div className="mt-4 rounded-lg border border-ghana-black/10 p-4 dark:border-white/10">
+              <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                <div className="min-w-0">
+                  <Link
+                    to={`/account/orders/${recentOrder.orderNumber}`}
+                    className="font-mono text-sm text-ghana-black transition-colors duration-200 hover:text-ghana-green dark:text-white"
+                  >
+                    {recentOrder.orderNumber}
+                  </Link>
+                  <p className="mt-1 text-xs text-ghana-black/55 dark:text-white/55">
+                    {formatOrderDate(recentOrder.createdAt)} ·{' '}
+                    {formatItemCount(recentOrder.itemCount)}
+                  </p>
+                </div>
+                <p className="font-display text-2xl text-ghana-black dark:text-white">
+                  {formatGhs(recentOrder.totalAmount)}
+                </p>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] uppercase tracking-[0.16em] text-ghana-black/60 dark:text-white/60">
+                <span className={recentOrder.status === 'cancelled' ? 'text-ghana-red' : ''}>
+                  {ORDER_STATUS_LABELS[recentOrder.status]}
+                </span>
+                <span>Payment: {PAYMENT_STATUS_LABELS[recentOrder.paymentStatus]}</span>
+              </div>
+
+              {/* Restrained: one view action and one invoice download, not an
+                  invoice UI in every account section. */}
+              <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-ghana-black/10 pt-3 dark:border-white/10">
+                <Link
+                  to={`/account/orders/${recentOrder.orderNumber}`}
+                  className="text-xs uppercase tracking-[0.16em] text-ghana-green transition-colors duration-200 hover:text-ghana-black dark:hover:text-white"
+                >
+                  View order
+                </Link>
+                <DownloadInvoiceButton
+                  userId={userId}
+                  orderNumber={recentOrder.orderNumber}
+                  variant="quiet"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Profile completion — real fields only */}

@@ -32,9 +32,10 @@ export function Cart() {
     void revalidateCart();
   }, [revalidateCart]);
 
-  const shipping = items.length > 0 ? 50 : 0;
-  const grandTotal = total + shipping;
-
+  // NOTE: the cart deliberately prices nothing but the subtotal. The earlier
+  // placeholder figures (a flat ₵50 delivery fee, "Tax (10%)") were never
+  // confirmed business rules; /checkout now shows the server-computed amounts
+  // from the single config source in the database.
   const notice = cartNotice;
   const noticeBlock = notice ? (
     <div
@@ -293,12 +294,8 @@ export function Cart() {
                   <span>{formatGhs(total)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Shipping</span>
-                  <span>{formatGhs(shipping)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Tax (10%)</span>
-                  <span>{formatGhs(total * 0.1)}</span>
+                  <span>Delivery &amp; tax</span>
+                  <span>Calculated at checkout</span>
                 </div>
               </div>
 
@@ -308,19 +305,34 @@ export function Cart() {
                     Total
                   </span>
                   <span className="text-3xl font-bold text-ghana-green">
-                    {formatGhs(grandTotal + total * 0.1)}
+                    {formatGhs(total)}
                   </span>
                 </div>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Before delivery and any applicable tax.
+                </p>
               </div>
 
               <div className="space-y-3">
-                <button
-                  type="button"
-                  disabled={unavailableCount > 0}
-                  className="btn-primary bg-ghana-green text-white w-full disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Proceed to Checkout
-                </button>
+                {/* Unavailable lines must be removed first — the same rule the
+                    checkout revalidation enforces server-side. */}
+                {unavailableCount > 0 ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="btn-primary bg-ghana-green text-white w-full cursor-not-allowed opacity-50"
+                  >
+                    Proceed to Checkout
+                  </button>
+                ) : (
+                  <Link
+                    to="/checkout"
+                    className="btn-primary bg-ghana-green text-white w-full inline-flex items-center justify-center gap-2"
+                  >
+                    Proceed to Checkout
+                    <ArrowRight size={18} />
+                  </Link>
+                )}
                 <Link
                   to="/shop"
                   className="btn-secondary border-ghana-green text-ghana-green w-full text-center"
@@ -329,18 +341,22 @@ export function Cart() {
                 </Link>
               </div>
 
+              {/*
+                Factual, system-level notes only.
+                No delivery fee, tax rate, returns window, carrier or payment
+                provider is claimed here — none of those rules has been
+                confirmed yet (see the sprint log's open commerce questions).
+              */}
               <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700 space-y-3 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-start gap-2">
                   <span className="text-ghana-green font-bold mt-0.5">✓</span>
-                  <span>Secure checkout with Paystack</span>
+                  <span>
+                    Checkout is for signed-in customers — your cart follows you into your account.
+                  </span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-ghana-green font-bold mt-0.5">✓</span>
-                  <span>Free returns within 30 days</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-ghana-green font-bold mt-0.5">✓</span>
-                  <span>Fast shipping across Ghana</span>
+                  <span>Delivery details come from the addresses saved in your account.</span>
                 </div>
               </div>
             </div>

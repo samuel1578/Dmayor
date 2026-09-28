@@ -63,6 +63,7 @@ export function CustomerLogin() {
           New here?{' '}
           <Link
             to="/signup"
+            state={{ from: redirectTo }}
             className="text-ghana-green underline underline-offset-4 hover:text-ghana-black dark:hover:text-white"
           >
             Create an account

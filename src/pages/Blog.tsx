@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { GlitchBrand } from '../components/GlitchBrand';
 
 interface BlogPost {
   id: string;
@@ -89,15 +90,17 @@ export function Blog() {
 
   return (
     <div className="bg-ghana-light dark:bg-ghana-dark transition-colors duration-300 min-h-screen">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-ghana-black to-ghana-green text-white py-12 md:py-16">
+      {/* Header — brand wordmark on the flat `ghana-black` zone of the
+          gradient (from 70%), so the mark's slice masks match exactly */}
+      <div className="bg-gradient-to-r from-ghana-black from-70% to-ghana-green to-100% text-white py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl font-bold mb-4"
           >
-            The Proxy Shop Stories
+            <GlitchBrand size="lg" surface="ink" />
+            <span className="mt-1 block md:mt-2">Stories</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: -10 }}

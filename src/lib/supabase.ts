@@ -276,6 +276,78 @@ export type CartItemInsert = {
 
 export type CartItemUpdate = Partial<Omit<CartItemRow, 'id'>> & { id?: string };
 
+/** Phase E1: fulfilment status only — never merged with payment status. */
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled';
+
+/** Phase E1: payment domain. Nothing in the app writes anything but 'unpaid'. */
+export type OrderPaymentStatus = 'unpaid' | 'paid' | 'failed' | 'refunded';
+
+/**
+ * Phase E1 order header. The delivery columns are a SNAPSHOT taken at checkout
+ * — they are deliberately not a foreign key to `customer_addresses`, because a
+ * saved address can later be edited or deleted and past orders must not move.
+ * Totals are computed server-side by `create_order_from_cart()`.
+ */
+export interface OrderRow {
+  id: string;
+  order_number: string;
+  user_id: string;
+  status: OrderStatus;
+  payment_status: OrderPaymentStatus;
+  subtotal: number;
+  shipping_amount: number;
+  tax_amount: number;
+  total_amount: number;
+  currency: string;
+  recipient_name: string;
+  phone: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  region: string | null;
+  country: string;
+  postal_code: string | null;
+  customer_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Orders are created by the checkout RPC only — the browser never inserts one. */
+export type OrderInsert = never;
+/** Customers may not mutate orders (status, payment_status, totals, delete). */
+export type OrderUpdate = never;
+
+/**
+ * Phase E1 order line. `product_name` / `variant_sku` / `size` / `colour` /
+ * `unit_price` are the authoritative record of what was bought; `product_id`
+ * and `variant_id` are nullable reporting links (`ON DELETE SET NULL`).
+ */
+export interface OrderItemRow {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  product_name: string;
+  product_slug: string | null;
+  variant_sku: string | null;
+  size: string | null;
+  colour: string | null;
+  unit_price: number;
+  quantity: number;
+  line_total: number;
+  image_url: string | null;
+  created_at: string;
+}
+
+export type OrderItemInsert = never;
+export type OrderItemUpdate = never;
+
 export type Database = {
   public: {
     Tables: {
@@ -328,6 +400,16 @@ export type Database = {
         Row: CustomerAddressRow;
         Insert: CustomerAddressInsert;
         Update: CustomerAddressUpdate;
+      };
+      orders: {
+        Row: OrderRow;
+        Insert: OrderInsert;
+        Update: OrderUpdate;
+      };
+      order_items: {
+        Row: OrderItemRow;
+        Insert: OrderItemInsert;
+        Update: OrderItemUpdate;
       };
     };
   };

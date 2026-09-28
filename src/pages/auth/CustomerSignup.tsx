@@ -1,13 +1,23 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthShell } from '../../components/auth/AuthShell';
 
 const MIN_PASSWORD_LENGTH = 8;
 
+interface LocationState {
+  from?: string;
+}
+
 export function CustomerSignup() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Destination the visitor was heading to before being asked to sign up
+  // (e.g. /checkout, which sends guests here via /login).
+  const intendedFrom = (location.state as LocationState | null)?.from;
+  const redirectTo = intendedFrom || '/account';
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -56,7 +66,7 @@ export function CustomerSignup() {
       return;
     }
 
-    navigate('/account', { replace: true });
+    navigate(redirectTo, { replace: true });
   };
 
   if (confirmationSent) {
@@ -70,6 +80,7 @@ export function CustomerSignup() {
             Already confirmed?{' '}
             <Link
               to="/login"
+              state={intendedFrom ? { from: intendedFrom } : undefined}
               className="text-ghana-green underline underline-offset-4 hover:text-ghana-black dark:hover:text-white"
             >
               Sign in
@@ -95,6 +106,7 @@ export function CustomerSignup() {
           Already have an account?{' '}
           <Link
             to="/login"
+            state={intendedFrom ? { from: intendedFrom } : undefined}
             className="text-ghana-green underline underline-offset-4 hover:text-ghana-black dark:hover:text-white"
           >
             Sign in

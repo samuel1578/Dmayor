@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react';
+import { GlitchBrand } from '../components/GlitchBrand';
 
 export function Contact() {
   const [formData, setFormData] = useState({
@@ -75,9 +76,13 @@ export function Contact() {
 
   return (
     <div className="bg-ghana-light dark:bg-ghana-dark transition-colors duration-300 min-h-screen">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-ghana-red to-ghana-green text-white py-12 md:py-16">
+      {/* Header — glitch brand mark leads, on the flat `ghana-red` zone of
+          the gradient (from 70%) so the slice masks match exactly */}
+      <div className="bg-gradient-to-r from-ghana-red from-70% to-ghana-green to-100% text-white py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-3 md:mb-5">
+            <GlitchBrand size="lg" surface="red" />
+          </div>
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

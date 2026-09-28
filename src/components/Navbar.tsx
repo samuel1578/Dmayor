@@ -8,7 +8,6 @@ import {
   Sun,
   ShoppingBag,
   Home as HomeIcon,
-  Layers,
   Info,
   Newspaper,
   MessageCircle,
@@ -33,12 +32,6 @@ interface NavLink {
 const navLinks: NavLink[] = [
   { name: 'Home', path: '/', icon: HomeIcon, tagline: 'Discover the latest' },
   { name: 'Shop', path: '/shop', icon: ShoppingBag, tagline: 'Browse all pieces' },
-  {
-    name: 'Collections',
-    path: '/collections',
-    icon: Layers,
-    tagline: 'Explore curated fits',
-  },
   { name: 'About', path: '/about', icon: Info, tagline: 'Our point of view' },
   { name: 'Blog', path: '/blog', icon: Newspaper, tagline: 'Stories & style' },
   { name: 'Contact', path: '/contact', icon: MessageCircle, tagline: 'Talk to us' },

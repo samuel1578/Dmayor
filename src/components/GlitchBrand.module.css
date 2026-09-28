@@ -78,6 +78,29 @@
   --glitch-bg: #221e0b;
 }
 
+/* Flat hero bands: ink = `ghana-black` (Blog), red = `ghana-red` (Contact).
+   Both bands keep the same colour in dark mode, so the dark override
+   repeats the value; the foreground flips to white to match the copy. */
+.onInk {
+  --glitch-bg: #111111;
+  --glitch-fg: #ffffff;
+}
+
+:global(.dark) .onInk {
+  --glitch-bg: #111111;
+  --glitch-fg: #ffffff;
+}
+
+.onRed {
+  --glitch-bg: #ce1126;
+  --glitch-fg: #ffffff;
+}
+
+:global(.dark) .onRed {
+  --glitch-bg: #ce1126;
+  --glitch-fg: #ffffff;
+}
+
 /* ---- duplicated layers ---------------------------------------- */
 
 .glitch::before,

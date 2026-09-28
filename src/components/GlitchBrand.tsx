@@ -28,7 +28,7 @@ export interface GlitchBrandProps {
   text?: string;
   size?: 'md' | 'lg' | 'corner' | 'menu';
   /** Mask surface — must match the container the mark sits on. */
-  surface?: 'page' | 'card' | 'brand';
+  surface?: 'page' | 'card' | 'brand' | 'ink' | 'red';
   variant?: 'inline' | 'sticky';
   className?: string;
 }
@@ -45,9 +45,13 @@ export function GlitchBrand({
   const surfaceClass =
     surface === 'brand'
       ? styles.onBrand
-      : surface === 'card' || variant === 'sticky'
-        ? styles.onCard
-        : undefined;
+      : surface === 'ink'
+        ? styles.onInk
+        : surface === 'red'
+          ? styles.onRed
+          : surface === 'card' || variant === 'sticky'
+            ? styles.onCard
+            : undefined;
 
   const glitch = (
     <span

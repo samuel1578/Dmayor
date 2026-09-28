@@ -13,7 +13,6 @@ export function Footer() {
       links: [
         { name: 'New Arrivals', path: '#' },
         { name: 'Best Sellers', path: '#' },
-        { name: 'Collections', path: '/collections' },
         { name: 'Sale', path: '#' },
       ],
     },
