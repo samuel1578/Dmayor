@@ -3,22 +3,12 @@ import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { QuickViewModal } from '../components/QuickViewModal';
-import { supabase } from '../lib/supabase';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image?: string;
-  category_id?: string;
-  slug?: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
+import {
+  listActiveProducts,
+  listPublicCategories,
+  type CatalogueProductSummary,
+  type PublicCategory,
+} from '../lib/catalogue/products';
 
 export function Shop() {
   const sortOptions = ['newest', 'price-low', 'price-high'] as const;
@@ -28,10 +18,10 @@ export function Shop() {
     'price-low': 'Price: Low to High',
     'price-high': 'Price: High to Low',
   };
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<CatalogueProductSummary[]>([]);
+  const [categories, setCategories] = useState<PublicCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<CatalogueProductSummary | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [loading, setLoading] = useState(true);
@@ -39,24 +29,13 @@ export function Shop() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
-          supabase.from('products').select('id, name, price, images, category_id, slug, status').eq('status', 'active'),
-          supabase.from('categories').select('id, name, slug').eq('slug', 'shirts').or('slug.eq.trousers').or('slug.eq.hoodies').or('slug.eq.shoes'),
+        const [catalogue, categoryList] = await Promise.all([
+          listActiveProducts(),
+          listPublicCategories(),
         ]);
 
-        if (productsRes.error) throw productsRes.error;
-        if (categoriesRes.error) throw categoriesRes.error;
-
-        const enrichedProducts = (productsRes.data || []).map((p) => {
-          const images = p.images as string[] || [];
-          return {
-            ...p,
-            image: images.length > 0 ? images[0] : undefined,
-          };
-        });
-
-        setProducts(enrichedProducts);
-        setCategories(categoriesRes.data || []);
+        setProducts(catalogue);
+        setCategories(categoryList);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -68,7 +47,7 @@ export function Shop() {
   }, []);
 
   const filteredProducts = selectedCategory
-    ? products.filter((p) => p.category_id === selectedCategory)
+    ? products.filter((p) => p.categoryId === selectedCategory)
     : products;
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -77,7 +56,7 @@ export function Shop() {
     return 0;
   });
 
-  const handleQuickView = (product: Product) => {
+  const handleQuickView = (product: CatalogueProductSummary) => {
     setSelectedProduct(product);
     setShowModal(true);
   };

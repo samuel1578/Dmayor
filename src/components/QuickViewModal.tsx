@@ -1,15 +1,19 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingCart, Minus, Plus } from 'lucide-react';
-import { useState } from 'react';
-import { useCart } from '../contexts/CartContext';
+import { Link } from 'react-router-dom';
+import { X, ArrowRight } from 'lucide-react';
+import { ProductImagePlaceholder } from './ProductImagePlaceholder';
 
+/** Normalized public shape (see `src/lib/catalogue/products.ts`). */
 export interface QuickViewProduct {
   id: string;
   name: string;
   price: number;
-  description?: string;
-  image?: string;
-  slug?: string;
+  description?: string | null;
+  /** Normalized primary image from `product_images`. */
+  image?: string | null;
+  slug?: string | null;
+  /** Derived from active `product_variants` stock. */
+  available?: boolean;
 }
 
 interface QuickViewModalProps {
@@ -18,25 +22,15 @@ interface QuickViewModalProps {
   product?: QuickViewProduct;
 }
 
+/**
+ * Lightweight summary only. Variant selection lives on the Product Detail
+ * Page, which is the canonical purchase interface — this modal does not
+ * duplicate that logic or claim availability it cannot verify.
+ */
 export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps) {
-  const [quantity, setQuantity] = useState(1);
-  const { addItem } = useCart();
-
   if (!product) return null;
 
-  const handleAddToCart = () => {
-    addItem({
-      productId: product.id,
-      productName: product.name,
-      price: product.price,
-      quantity,
-      image: product.image,
-      variantId: undefined,
-      sku: undefined,
-    });
-    setQuantity(1);
-    onClose();
-  };
+  const detailPath = product.slug ? `/product/${product.slug}` : null;
 
   return (
     <AnimatePresence>
@@ -53,6 +47,9 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${product.name} preview`}
             className="relative bg-white dark:bg-ghana-black rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl"
           >
             <div className="p-6 md:p-8">
@@ -68,14 +65,15 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 md:mt-0">
                 <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                  <img
-                    src={
-                      product.image ||
-                      'https://images.pexels.com/photos/1055691/pexels-photo-1055691.jpeg?auto=compress&cs=tinysrgb&w=500'
-                    }
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ProductImagePlaceholder />
+                  )}
                 </div>
 
                 <div className="flex flex-col justify-between">
@@ -91,45 +89,30 @@ export function QuickViewModal({ isOpen, onClose, product }: QuickViewModalProps
                         {product.description}
                       </p>
                     )}
-
-                    <div className="grid grid-cols-2 gap-4 mb-8 py-6 border-t border-b border-gray-200 dark:border-gray-700">
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Availability</p>
-                        <p className="font-semibold text-ghana-green">In Stock</p>
-                      </div>
-                    </div>
+                    {typeof product.available === 'boolean' && (
+                      <p
+                        className={`mb-6 text-[11px] font-semibold uppercase tracking-[0.2em] ${
+                          product.available ? 'text-ghana-green' : 'text-ghana-red'
+                        }`}
+                      >
+                        {product.available ? 'In stock' : 'Out of stock'}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                      Sizes, colours and availability are shown on the product page.
+                    </p>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quantity</p>
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                          className="btn-icon text-ghana-black dark:text-white bg-gray-100 dark:bg-gray-800"
-                        >
-                          <Minus size={18} />
-                        </button>
-                        <span className="text-lg font-semibold text-ghana-black dark:text-white w-8 text-center">
-                          {quantity}
-                        </span>
-                        <button
-                          onClick={() => setQuantity(quantity + 1)}
-                          className="btn-icon text-ghana-black dark:text-white bg-gray-100 dark:bg-gray-800"
-                        >
-                          <Plus size={18} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleAddToCart}
-                      className="w-full btn-primary bg-ghana-green text-white flex items-center justify-center gap-2 py-4"
+                  {detailPath && (
+                    <Link
+                      to={detailPath}
+                      onClick={onClose}
+                      className="mt-8 w-full btn-primary bg-ghana-green text-white flex items-center justify-center gap-2 py-4"
                     >
-                      <ShoppingCart size={20} />
-                      Add to Cart
-                    </button>
-                  </div>
+                      View full details
+                      <ArrowRight size={20} aria-hidden="true" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

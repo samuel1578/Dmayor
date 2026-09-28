@@ -214,12 +214,50 @@ export type CollectionProductInsert = {
 
 export type CollectionProductUpdate = Partial<Omit<CollectionProductRow, 'id'>> & { id?: string };
 
+export interface CustomerAddressRow {
+  id: string;
+  user_id: string;
+  label: string | null;
+  recipient_name: string;
+  phone: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  region: string | null;
+  country: string;
+  postal_code: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CustomerAddressInsert = {
+  id?: string;
+  user_id: string;
+  label?: string | null;
+  recipient_name: string;
+  phone: string;
+  address_line1: string;
+  address_line2?: string | null;
+  city: string;
+  region?: string | null;
+  country?: string;
+  postal_code?: string | null;
+  is_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CustomerAddressUpdate = Partial<Omit<CustomerAddressRow, 'id'>> & { id?: string };
+
 export type CartItemRow = {
   id: string;
   product_id: string;
-  variant_id: string | null;
+  /** Phase D2: always set — a cart line is customer + product + exact variant. */
+  variant_id: string;
   quantity: number;
-  user_id: string | null;
+  /** Phase D2: always set — auth.uid() ownership, FK to auth.users(id). */
+  user_id: string;
   session_id: string | null;
   created_at: string;
   updated_at: string;
@@ -228,9 +266,9 @@ export type CartItemRow = {
 export type CartItemInsert = {
   id?: string;
   product_id: string;
-  variant_id?: string | null;
+  variant_id: string;
   quantity?: number;
-  user_id?: string | null;
+  user_id: string;
   session_id?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -285,6 +323,11 @@ export type Database = {
         Row: CartItemRow;
         Insert: CartItemInsert;
         Update: CartItemUpdate;
+      };
+      customer_addresses: {
+        Row: CustomerAddressRow;
+        Insert: CustomerAddressInsert;
+        Update: CustomerAddressUpdate;
       };
     };
   };

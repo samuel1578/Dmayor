@@ -11,20 +11,14 @@ import { QuickViewModal } from '../components/QuickViewModal';
 import { ScrollyHero } from '../components/hero/ScrollyHero';
 import { BrandValueSection } from '../components/home/BrandValueSection';
 import { FitCollections } from '../components/home/FitCollections';
-import { supabase } from '../lib/supabase';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image?: string;
-  featured: boolean;
-  slug?: string;
-}
+import {
+  listFeaturedProducts,
+  type CatalogueProductSummary,
+} from '../lib/catalogue/products';
 
 export function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<CatalogueProductSummary[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<CatalogueProductSummary | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState<number>(() => {
@@ -37,24 +31,9 @@ export function Home() {
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('id, name, price, featured, slug, images')
-          .eq('featured', true)
-          .eq('status', 'active')
-          .limit(8);
-
-        if (error) throw error;
-
-        const enrichedProducts = (data || []).map((productItem) => {
-          const images = productItem.images as string[] || [];
-          return {
-            ...productItem,
-            image: images.length > 0 ? images[0] : undefined,
-          };
-        }) as Product[];
-
-        setProducts(enrichedProducts);
+        // Shared public catalogue layer: normalized primary image per product.
+        const featured = await listFeaturedProducts(8);
+        setProducts(featured);
       } catch (err) {
         console.error('Error fetching products:', err);
       } finally {
@@ -75,7 +54,7 @@ export function Home() {
     return () => window.removeEventListener('resize', updateVisibleCount);
   }, []);
 
-  const handleQuickView = (product: Product) => {
+  const handleQuickView = (product: CatalogueProductSummary) => {
     setSelectedProduct(product);
     setShowModal(true);
   };

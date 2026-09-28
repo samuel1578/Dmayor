@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu,
@@ -12,9 +12,13 @@ import {
   Info,
   Newspaper,
   MessageCircle,
+  User as UserIcon,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import logoHeader from '../assets/logo-header.png';
 import logoDark from '../assets/logodark.png';
 
@@ -45,8 +49,17 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { itemCount } = useCart();
+  const { session, isAdmin, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const logoSrc = theme === 'dark' ? logoHeader : logoDark;
+  const accountPath = session ? '/account' : '/login';
+
+  const handleSignOut = async () => {
+    setIsOpen(false);
+    await signOut();
+    navigate('/', { replace: true });
+  };
 
   const isActive = (path: string) =>
     path === '/'
@@ -123,6 +136,22 @@ export function Navbar() {
                 <Moon size={20} aria-hidden="true" />
               )}
             </button>
+
+            {/* Account — restrained single control */}
+            <Link
+              to={accountPath}
+              className="btn-icon text-ghana-black dark:text-white bg-gray-100 dark:bg-gray-800 relative"
+              aria-label={session ? 'Your account' : 'Sign in'}
+              title={session ? 'Your account' : 'Sign in'}
+            >
+              <UserIcon size={20} aria-hidden="true" />
+              {session && (
+                <span
+                  className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-ghana-green"
+                  aria-hidden="true"
+                />
+              )}
+            </Link>
 
             <Link
               to="/cart"
@@ -332,10 +361,78 @@ export function Navbar() {
                 </Link>
               </div>
 
-              {/*
-                Future account area (not rendered — no fake Login/Register CTAs).
-                Structure: mobileMenu → primary nav / cart / account slot.
-              */}
+              {/* Account section */}
+              <div className="mt-4 border-t border-gray-200 pt-5 dark:border-gray-700">
+                <p className="hero-type-ui mb-3 text-[11px] font-semibold uppercase tracking-[0.32em] text-ghana-green">
+                  Account
+                </p>
+
+                {session ? (
+                  <ul className="space-y-2">
+                    <li>
+                      <Link
+                        to="/account"
+                        onClick={() => setIsOpen(false)}
+                        className="flex min-h-[48px] items-center gap-3 px-4 py-3 text-ghana-black transition-colors hover:bg-ghana-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green dark:text-white"
+                      >
+                        <UserIcon size={18} aria-hidden="true" className="text-ghana-green" />
+                        <span className="hero-type-ui text-[15px] font-semibold tracking-[0.02em]">
+                          Account
+                        </span>
+                      </Link>
+                    </li>
+
+                    {isAdmin && (
+                      <li>
+                        <Link
+                          to="/admin"
+                          onClick={() => setIsOpen(false)}
+                          className="flex min-h-[48px] items-center gap-3 px-4 py-3 text-ghana-black transition-colors hover:bg-ghana-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green dark:text-white"
+                        >
+                          <ShieldCheck size={18} aria-hidden="true" className="text-ghana-green" />
+                          <span className="hero-type-ui text-[15px] font-semibold tracking-[0.02em]">
+                            Admin
+                          </span>
+                        </Link>
+                      </li>
+                    )}
+
+                    <li>
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="flex min-h-[48px] w-full items-center gap-3 px-4 py-3 text-left text-ghana-black transition-colors hover:bg-ghana-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green dark:text-white"
+                      >
+                        <LogOut size={18} aria-hidden="true" className="text-ghana-green" />
+                        <span className="hero-type-ui text-[15px] font-semibold tracking-[0.02em]">
+                          Log out
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Link
+                      to="/login"
+                      onClick={() => setIsOpen(false)}
+                      className="flex min-h-[48px] items-center justify-center gap-3 border border-ghana-green/40 px-4 py-3 text-ghana-black transition-colors hover:bg-ghana-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green dark:text-white"
+                    >
+                      <span className="hero-type-ui text-[13px] font-semibold uppercase tracking-[0.12em]">
+                        Sign in
+                      </span>
+                    </Link>
+                    <Link
+                      to="/signup"
+                      onClick={() => setIsOpen(false)}
+                      className="flex min-h-[48px] items-center justify-center gap-3 bg-ghana-green px-4 py-3 text-white transition-colors hover:bg-ghana-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ghana-green"
+                    >
+                      <span className="hero-type-ui text-[13px] font-semibold uppercase tracking-[0.12em]">
+                        Create account
+                      </span>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </nav>
           </motion.div>
         )}
