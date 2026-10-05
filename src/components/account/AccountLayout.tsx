@@ -19,6 +19,8 @@ const navItems = [
   { to: '/account/addresses', label: 'Addresses', end: false },
   // Phase E2: the real order history replaces the disabled placeholder.
   { to: '/account/orders', label: 'Orders', end: false },
+  // Phase H0.2: payment records derived from the customer's own orders.
+  { to: '/account/payments', label: 'Payments', end: false },
 ];
 
 const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>

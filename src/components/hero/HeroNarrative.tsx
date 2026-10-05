@@ -59,9 +59,20 @@ function NarrativeShell({
       );
   const y = useTransform(progress, win.input, yOutput);
 
+  /**
+   * Every shell is full-bleed `absolute inset-0` and they stack in DOM order,
+   * so an invisible shell would still sit under the cursor and swallow the
+   * clicks meant for the chapter CTAs underneath it. A shell only accepts
+   * pointer events while it is the one actually on screen.
+   */
+  const pointerEvents = useTransform(
+    opacity,
+    (value): React.CSSProperties['pointerEvents'] => (value > 0.5 ? 'auto' : 'none'),
+  );
+
   return (
     <motion.div
-      style={{ opacity, y }}
+      style={{ opacity, y, pointerEvents }}
       className={`hero-type-ui absolute inset-0 flex flex-col justify-center px-5 sm:px-8 md:px-10 lg:px-12 ${className ?? ''}`}
     >
       {children}

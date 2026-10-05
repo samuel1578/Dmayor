@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Minus } from 'lucide-react';
@@ -15,6 +15,12 @@ import {
   type OrderSummary,
 } from '../../lib/account/orders';
 import { formatGhs } from '../../lib/catalogue/products';
+import {
+  PAYMENT_STATE_TITLES,
+  countMyPaymentsByStatus,
+  listMyPayments,
+  type CustomerPayment,
+} from '../../lib/account/payments';
 import { GlitchBrand } from '../../components/GlitchBrand';
 import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceButton';
 
@@ -35,6 +41,8 @@ export function AccountOverview() {
   const [orderCount, setOrderCount] = useState<number | null>(null);
   /** `undefined` = still loading, `null` = loaded and genuinely no orders. */
   const [recentOrder, setRecentOrder] = useState<OrderSummary | null | undefined>(undefined);
+  /** Phase H0.2 — payment summary derived from the customer's own orders. */
+  const [payments, setPayments] = useState<CustomerPayment[] | null>(null);
 
   const userId = user?.id ?? null;
 
@@ -69,10 +77,23 @@ export function AccountOverview() {
         if (!cancelled) setRecentOrder(null);
       });
 
+    // One list query feeds both the counts and the most recent payment (no N+1).
+    listMyPayments(userId)
+      .then((records) => {
+        if (!cancelled) setPayments(records);
+      })
+      .catch((err) => {
+        console.error('Payment summary load failed:', err);
+        if (!cancelled) setPayments([]);
+      });
+
     return () => {
       cancelled = true;
     };
   }, [userId]);
+
+  const paymentCounts = useMemo(() => countMyPaymentsByStatus(payments ?? []), [payments]);
+  const recentPayment = payments && payments.length > 0 ? payments[0] : null;
 
   const displayName = profile?.fullName || user?.email?.split('@')[0] || 'there';
 
@@ -241,6 +262,72 @@ export function AccountOverview() {
                 />
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Phase H0.2 — payment summary. Real counts and the latest recorded
+            state only: no wallet, balance, loyalty points or card details. */}
+        <div className="mt-6 rounded-lg border border-ghana-black/10 p-5 sm:p-6 dark:border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-2xl text-ghana-black dark:text-white">Payments</h2>
+            <Link
+              to="/account/payments"
+              className="text-[10px] uppercase tracking-[0.22em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              View Payments
+            </Link>
+          </div>
+
+          {payments === null && (
+            <p className="mt-4 text-sm text-ghana-black/50 dark:text-white/50">
+              Loading your payments…
+            </p>
+          )}
+
+          {payments !== null && payments.length === 0 && (
+            <p className="mt-4 text-sm text-ghana-black/60 dark:text-white/60">
+              No payment records yet — they appear here once you place an order.
+            </p>
+          )}
+
+          {payments !== null && payments.length > 0 && (
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50">
+                    Unpaid orders
+                  </p>
+                  <p className="mt-1 font-display text-2xl text-ghana-black dark:text-white">
+                    {paymentCounts.unpaid}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50">
+                    Paid orders
+                  </p>
+                  <p className="mt-1 font-display text-2xl text-ghana-black dark:text-white">
+                    {paymentCounts.paid}
+                  </p>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50">
+                    Most recent payment
+                  </p>
+                  <p className="mt-1 text-sm text-ghana-black dark:text-white">
+                    {recentPayment
+                      ? `${recentPayment.orderNumber} · ${PAYMENT_STATE_TITLES[recentPayment.paymentStatus]}`
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {recentPayment && (
+                <p className="mt-3 text-xs text-ghana-black/50 dark:text-white/50">
+                  Current status: {PAYMENT_STATUS_LABELS[recentPayment.paymentStatus]}. Payment is
+                  tracked separately from order progress.
+                </p>
+              )}
+            </>
           )}
         </div>
 

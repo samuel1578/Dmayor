@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Tags, Layers, Newspaper, Receipt } from 'lucide-react';
+import { LayoutDashboard, Package, Tags, Layers, Newspaper, Receipt, Wallet } from 'lucide-react';
 
 interface AdminNavItem {
   name: string;
@@ -15,6 +15,8 @@ const navItems: AdminNavItem[] = [
   { name: 'Categories', path: '/admin/categories', icon: Tags, enabled: true },
   // Phase E3: orders are live (manual payment + fulfilment management).
   { name: 'Orders', path: '/admin/orders', icon: Receipt, enabled: true },
+  // Phase H0.1: payment metadata + manual payment records (no provider yet).
+  { name: 'Payments', path: '/admin/payments', icon: Wallet, enabled: true },
   { name: 'Collections', path: '/admin/collections', icon: Layers, enabled: false },
   { name: 'Blog', path: '/admin/blog', icon: Newspaper, enabled: false },
 ];

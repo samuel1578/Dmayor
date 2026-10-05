@@ -19,6 +19,8 @@ import { AccountProfile } from './pages/account/AccountProfile';
 import { AccountAddresses } from './pages/account/AccountAddresses';
 import { AccountOrders } from './pages/account/AccountOrders';
 import { AccountOrderDetail } from './pages/account/AccountOrderDetail';
+import { AccountPayments } from './pages/account/AccountPayments';
+import { AccountPaymentDetail } from './pages/account/AccountPaymentDetail';
 import { AdminRoute } from './components/admin/AdminRoute';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLogin } from './pages/admin/AdminLogin';
@@ -28,6 +30,8 @@ import { AdminProductEditor } from './pages/admin/AdminProductEditor';
 import { AdminCategories } from './pages/admin/AdminCategories';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminOrderDetail } from './pages/admin/AdminOrderDetail';
+import { AdminPayments } from './pages/admin/AdminPayments';
+import { AdminPaymentDetail } from './pages/admin/AdminPaymentDetail';
 
 function App() {
   return (
@@ -66,6 +70,9 @@ function App() {
               {/* Phase E2 — customer order history + one order, read-only. */}
               <Route path="orders" element={<AccountOrders />} />
               <Route path="orders/:orderNumber" element={<AccountOrderDetail />} />
+              {/* Phase H0.2 — customer payment center, derived from own orders. */}
+              <Route path="payments" element={<AccountPayments />} />
+              <Route path="payments/:orderNumber" element={<AccountPaymentDetail />} />
             </Route>
           </Route>
         </Route>
@@ -86,6 +93,10 @@ function App() {
             {/* Phase E3 — manual payment + fulfilment operations. */}
             <Route path="orders" element={<AdminOrders />} />
             <Route path="orders/:id" element={<AdminOrderDetail />} />
+            {/* Phase H0.1 — payment metadata + Admin payment center. Catches
+                a payment by its order id; no Paystack route exists yet. */}
+            <Route path="payments" element={<AdminPayments />} />
+            <Route path="payments/:orderId" element={<AdminPaymentDetail />} />
             {/* Later phases: collections, blog */}
           </Route>
         </Route>

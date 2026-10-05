@@ -1,0 +1,458 @@
+/*
+  The Proxy Shop — Phase H0.1: Payment metadata foundation + Admin Payment Center
+  ---------------------------------------------------------------------------
+  Creates the payment METADATA FOUNDATION and the Admin payment operations
+  surface. It is deliberately NOT a Paystack integration.
+
+  This migration must NOT (and does not):
+    - initialize Paystack
+    - create Paystack callback routes or a webhook
+    - verify payments
+    - expose any Paystack secret
+    - create fake transactions or fake references
+    - automatically mark orders paid
+    - process refunds
+
+  Adds
+    - public.orders.payment_reference  text
+    - public.orders.payment_provider   text
+    - public.orders.payment_channel    text
+    - public.orders.payment_source     text (null | manual | paystack)
+    - public.orders.payment_updated_at timestamptz
+    - a BEFORE UPDATE trigger that refreshes payment_updated_at whenever the
+      payment state or payment metadata changes (paid_at is left alone)
+    - three admin-only SECURITY DEFINER functions:
+        admin_list_payments(...)   search + filter + paginate the payment queue
+        admin_get_payment(uuid)    one payment-focused detail payload
+        admin_set_manual_payment(...) server-enforced manual payment record
+
+  Payment-source semantics
+    payment_source is constrained to (manual | paystack) and is NULLABLE.
+      - 'manual'  is the only value actively written today, and it is set
+                  SERVER-SIDE by admin_set_manual_payment() — the client never
+                  chooses it.
+      - 'paystack' exists only as a forward-compatible allowed value. Nothing
+                  in this migration writes it. Paystack becomes real in Phase F.
+    payment_provider and payment_channel are nullable free text. They are NOT
+    auto-populated: the Admin enters what actually happened (e.g. "Manual",
+    "bank", "mobile_money", "transfer"). No value is invented here.
+
+  paid_at vs payment_updated_at
+    paid_at            = when the order is CURRENTLY marked paid (cleared when
+                         it moves away from paid). Unchanged from E3.
+    payment_updated_at = when the payment state or metadata last changed.
+
+  Authorization
+    Every function starts with the same fail-closed check used in Phase E3:
+        if not coalesce(public.is_admin(), false) then raise exception …
+    Reads/writes run through these functions instead of new table policies, so
+    NOTHING is widened:
+      - no new grants on public.orders / public.order_items
+      - customers keep their E1 read-only access (own orders only)
+      - the customer email is only reachable through the admin functions
+        (auth.users is not exposed to PostgREST)
+
+  Existing order-payment RPC
+    public.admin_set_order_payment_status(uuid, text) is preserved for
+    compatibility but refactored to DELEGATE to admin_set_manual_payment(), so
+    there is exactly ONE payment-write code path and no drifting duplicate.
+    It now also records payment_source = 'manual', which is the correct
+    attribution for the manual workflow. Marking an order paid still never
+    touches fulfilment status, and no money moves.
+
+  Coupling
+    Payment status and order status remain SEPARATE domains. Nothing here maps
+    paid → confirmed, or refunded → cancelled.
+
+  Forward migration only: previous files are never edited, and this file is
+  applied manually — it is not run automatically. Safe to re-run.
+*/
+
+-- ---------------------------------------------------------------------------
+-- 0. Preconditions
+-- ---------------------------------------------------------------------------
+do $$
+begin
+  if to_regclass('public.orders') is null then
+    raise exception 'public.orders was not found. Apply migration 008 first, then run this file.';
+  end if;
+
+  if to_regprocedure('public.is_admin()') is null then
+    raise exception 'public.is_admin() was not found. The Phase A admin/auth migration must be applied first.';
+  end if;
+
+  if to_regclass('public.profiles') is null then
+    raise exception 'public.profiles was not found. Apply migration 005 first, then run this file.';
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 1. Payment metadata columns (additive, nullable, no backfill)
+-- ---------------------------------------------------------------------------
+alter table public.orders add column if not exists payment_reference text;
+alter table public.orders add column if not exists payment_provider text;
+alter table public.orders add column if not exists payment_channel text;
+alter table public.orders add column if not exists payment_source text;
+alter table public.orders add column if not exists payment_updated_at timestamptz;
+
+comment on column public.orders.payment_reference is
+  'Optional external payment reference recorded by Admin for a manual payment (bank/MoMo/transfer). Phase F will populate the real Paystack reference. Never generated by this app.';
+comment on column public.orders.payment_provider is
+  'Free-text payment provider for a recorded payment (e.g. Manual, Paystack). Nullable — never auto-populated.';
+comment on column public.orders.payment_channel is
+  'Free-text payment channel for a recorded payment (e.g. card, mobile_money, bank, transfer). Nullable — never invented.';
+comment on column public.orders.payment_source is
+  'Attribution for the recorded payment: manual (written server-side today) or paystack (allowed forward-compatible value, written in Phase F). Null until a payment is recorded.';
+comment on column public.orders.payment_updated_at is
+  'When the payment state or payment metadata last changed. Distinct from paid_at, which only records when the order is CURRENTLY marked paid.';
+
+-- Constrained to the two allowed sources; paystack is future-compatible only.
+alter table public.orders drop constraint if exists orders_payment_source_check;
+alter table public.orders add constraint orders_payment_source_check
+  check (payment_source is null or payment_source in ('manual', 'paystack'));
+
+-- Payment-source filter support for the Admin payment queue.
+create index if not exists idx_orders_payment_source
+  on public.orders(payment_source);
+
+-- ---------------------------------------------------------------------------
+-- 2. payment_updated_at trigger
+--    Plain trigger (not SECURITY DEFINER), like set_updated_at(). It only
+--    touches payment_updated_at and never changes paid_at or status.
+-- ---------------------------------------------------------------------------
+create or replace function public.set_orders_payment_updated_at()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if (
+    new.payment_status is distinct from old.payment_status
+    or new.payment_reference is distinct from old.payment_reference
+    or new.payment_provider is distinct from old.payment_provider
+    or new.payment_channel is distinct from old.payment_channel
+    or new.payment_source is distinct from old.payment_source
+  ) then
+    new.payment_updated_at := now();
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists set_orders_payment_updated_at on public.orders;
+create trigger set_orders_payment_updated_at
+  before update on public.orders
+  for each row
+  execute function public.set_orders_payment_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- 3. admin_list_payments() — search + filter + paginate the payment queue
+--
+--    p_search          matches order number, recipient name, customer full
+--                      name, customer email and payment reference
+--    p_payment_status  exact payment status, or null for all
+--    p_payment_source  'manual' | 'paystack', or null for all
+--    Newest first. Limit clamped to 1..200 so the client can never ask for an
+--    unbounded result set. Every column returned is read straight from the
+--    order row — nothing is synthesised.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_list_payments(
+  p_search text default null,
+  p_payment_status text default null,
+  p_payment_source text default null,
+  p_limit integer default 50,
+  p_offset integer default 0
+)
+returns table (
+  id uuid,
+  order_number text,
+  customer_name text,
+  customer_email text,
+  total_amount numeric,
+  currency text,
+  payment_status text,
+  payment_source text,
+  payment_provider text,
+  payment_channel text,
+  payment_reference text,
+  paid_at timestamptz,
+  payment_updated_at timestamptz,
+  created_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_search text := nullif(btrim(coalesce(p_search, '')), '');
+  v_limit integer := least(greatest(coalesce(p_limit, 50), 1), 200);
+  v_offset integer := greatest(coalesce(p_offset, 0), 0);
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'not_authorized|Admin access is required to view payments.';
+  end if;
+
+  if p_payment_status is not null
+     and p_payment_status not in ('unpaid', 'paid', 'failed', 'refunded') then
+    raise exception 'invalid_status|% is not a valid payment status.', p_payment_status;
+  end if;
+
+  if p_payment_source is not null
+     and p_payment_source not in ('manual', 'paystack') then
+    raise exception 'invalid_status|% is not a valid payment source.', p_payment_source;
+  end if;
+
+  return query
+  select
+    o.id,
+    o.order_number,
+    coalesce(nullif(btrim(pr.full_name), ''), o.recipient_name) as customer_name,
+    u.email::text as customer_email,
+    o.total_amount,
+    o.currency,
+    o.payment_status,
+    o.payment_source,
+    o.payment_provider,
+    o.payment_channel,
+    o.payment_reference,
+    o.paid_at,
+    o.payment_updated_at,
+    o.created_at
+  from public.orders o
+  left join public.profiles pr on pr.id = o.user_id
+  left join auth.users u on u.id = o.user_id
+  where (p_payment_status is null or o.payment_status = p_payment_status)
+    and (p_payment_source is null or o.payment_source = p_payment_source)
+    and (
+      v_search is null
+      or o.order_number ilike '%' || v_search || '%'
+      or o.recipient_name ilike '%' || v_search || '%'
+      or pr.full_name ilike '%' || v_search || '%'
+      or u.email ilike '%' || v_search || '%'
+      or o.payment_reference ilike '%' || v_search || '%'
+    )
+  order by o.created_at desc
+  limit v_limit
+  offset v_offset;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 4. admin_get_payment(uuid) — payment-focused detail (not the whole order)
+--    { order: {…payment + summary…}, customer: {name,email,phone} }
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_get_payment(p_order_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_result jsonb;
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'not_authorized|Admin access is required to view this payment.';
+  end if;
+
+  select jsonb_build_object(
+    'order', jsonb_build_object(
+      'id', o.id,
+      'order_number', o.order_number,
+      'status', o.status,
+      'total_amount', o.total_amount,
+      'currency', o.currency,
+      'payment_status', o.payment_status,
+      'payment_source', o.payment_source,
+      'payment_provider', o.payment_provider,
+      'payment_channel', o.payment_channel,
+      'payment_reference', o.payment_reference,
+      'paid_at', o.paid_at,
+      'payment_updated_at', o.payment_updated_at,
+      'created_at', o.created_at
+    ),
+    'customer', jsonb_build_object(
+      'name', coalesce(nullif(btrim(pr.full_name), ''), o.recipient_name),
+      'email', u.email::text,
+      'phone', coalesce(nullif(btrim(pr.phone), ''), o.phone)
+    )
+  )
+  into v_result
+  from public.orders o
+  left join public.profiles pr on pr.id = o.user_id
+  left join auth.users u on u.id = o.user_id
+  where o.id = p_order_id;
+
+  if v_result is null then
+    raise exception 'order_not_found|That order no longer exists.';
+  end if;
+
+  return v_result;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 5. admin_set_manual_payment(uuid, text, text, text, text)
+--
+--    The single, safe manual-payment write path.
+--
+--      p_payment_status  required: unpaid | paid | failed | refunded
+--      p_reference       optional; blank/null leaves the stored value unchanged
+--      p_provider        optional; blank/null leaves the stored value unchanged
+--      p_channel         optional; blank/null leaves the stored value unchanged
+--
+--    Rules:
+--      - payment_source is set to 'manual' SERVER-SIDE. The client cannot send
+--        it and cannot choose 'paystack'.
+--      - paid_at is set when the order becomes paid and cleared otherwise.
+--        Re-recording metadata while already paid preserves the original
+--        paid_at moment.
+--      - payment_updated_at is refreshed by the trigger.
+--      - NO money is moved and NO external network call is made.
+--      - fulfilment status is never touched.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_set_manual_payment(
+  p_order_id uuid,
+  p_payment_status text,
+  p_reference text default null,
+  p_provider text default null,
+  p_channel text default null
+)
+returns setof public.orders
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_current text;
+  v_now timestamptz := now();
+  v_reference text;
+  v_provider text;
+  v_channel text;
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'not_authorized|Admin access is required to change a payment status.';
+  end if;
+
+  if p_payment_status is null
+     or p_payment_status not in ('unpaid', 'paid', 'failed', 'refunded') then
+    raise exception 'invalid_status|% is not a valid payment status.', coalesce(p_payment_status, '(none)');
+  end if;
+
+  -- Normalise optional free text: blank becomes null, and blank/null means
+  -- "leave the stored value alone" rather than "clear it".
+  v_reference := nullif(btrim(coalesce(p_reference, '')), '');
+  v_provider := nullif(btrim(coalesce(p_provider, '')), '');
+  v_channel := nullif(btrim(coalesce(p_channel, '')), '');
+
+  if v_reference is not null and char_length(v_reference) > 200 then
+    raise exception 'reference_too_long|Payment references must be 200 characters or fewer.';
+  end if;
+
+  if v_provider is not null and char_length(v_provider) > 100 then
+    raise exception 'provider_too_long|Payment providers must be 100 characters or fewer.';
+  end if;
+
+  if v_channel is not null and char_length(v_channel) > 100 then
+    raise exception 'channel_too_long|Payment channels must be 100 characters or fewer.';
+  end if;
+
+  select o.payment_status into v_current
+  from public.orders o
+  where o.id = p_order_id
+  for update;
+
+  if not found then
+    raise exception 'order_not_found|That order no longer exists.';
+  end if;
+
+  -- Nothing to do: same status and no new metadata supplied.
+  if v_current = p_payment_status
+     and v_reference is null
+     and v_provider is null
+     and v_channel is null then
+    raise exception 'no_change|This payment record is already up to date.';
+  end if;
+
+  update public.orders
+  set
+    payment_status = p_payment_status,
+    -- Server-enforced attribution; never taken from the client.
+    payment_source = 'manual',
+    payment_reference = coalesce(v_reference, payment_reference),
+    payment_provider = coalesce(v_provider, payment_provider),
+    payment_channel = coalesce(v_channel, payment_channel),
+    -- paid_at records when the order is CURRENTLY paid; keep the original
+    -- moment if metadata is re-recorded while it is already paid.
+    paid_at = case
+      when p_payment_status = 'paid' then coalesce(paid_at, v_now)
+      else null
+    end
+  where id = p_order_id;
+
+  return query select o.* from public.orders o where o.id = p_order_id;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 6. Preserve admin_set_order_payment_status(uuid, text)
+--
+--    Kept for backward compatibility (the Admin order detail page still calls
+--    it), but refactored to DELEGATE to admin_set_manual_payment() so there is
+--    one payment-write implementation. Existing semantics are unchanged:
+--    invalid status → invalid_status, same status with no metadata → no_change,
+--    unknown order → order_not_found. It now also records
+--    payment_source = 'manual', which is the correct attribution.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_set_order_payment_status(
+  p_order_id uuid,
+  p_payment_status text
+)
+returns setof public.orders
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'not_authorized|Admin access is required to change a payment status.';
+  end if;
+
+  return query
+  select *
+  from public.admin_set_manual_payment(p_order_id, p_payment_status, null, null, null);
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Function grants: authenticated sessions only, and every function re-checks
+--    public.is_admin() itself (fail closed). No table-level privilege is added
+--    or widened anywhere by this migration.
+-- ---------------------------------------------------------------------------
+revoke all on function public.admin_list_payments(text, text, text, integer, integer) from public;
+revoke all on function public.admin_list_payments(text, text, text, integer, integer) from anon;
+revoke all on function public.admin_get_payment(uuid) from public;
+revoke all on function public.admin_get_payment(uuid) from anon;
+revoke all on function public.admin_set_manual_payment(uuid, text, text, text, text) from public;
+revoke all on function public.admin_set_manual_payment(uuid, text, text, text, text) from anon;
+revoke all on function public.admin_set_order_payment_status(uuid, text) from public;
+revoke all on function public.admin_set_order_payment_status(uuid, text) from anon;
+
+grant execute on function public.admin_list_payments(text, text, text, integer, integer) to authenticated;
+grant execute on function public.admin_get_payment(uuid) to authenticated;
+grant execute on function public.admin_set_manual_payment(uuid, text, text, text, text) to authenticated;
+grant execute on function public.admin_set_order_payment_status(uuid, text) to authenticated;
+
+-- Ask PostgREST to pick up the new columns/functions immediately.
+notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- 8. Confirmation notice
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  order_count bigint;
+begin
+  select count(*) into order_count from public.orders;
+
+  raise notice 'Phase H0.1 payment metadata applied. Orders: %. payment_source is null until an Admin records a manual payment; paystack is an allowed value only and is never written by this migration.', order_count;
+end $$;

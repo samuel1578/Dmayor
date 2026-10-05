@@ -42,6 +42,13 @@ export function Footer() {
     { icon: Twitter, url: '#', name: 'Twitter' },
   ];
 
+  /** Official marks served locally from `public/payment-logos/` (no hotlinking). */
+  const paymentLogos = [
+    { src: '/payment-logos/visa.jpeg', alt: 'Visa' },
+    { src: '/payment-logos/mastercard.png', alt: 'Mastercard' },
+    { src: '/payment-logos/paystack.png', alt: 'Paystack' },
+  ];
+
   return (
     <footer className="bg-ghana-black text-white py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -99,11 +106,20 @@ export function Footer() {
         {/* Payment Methods */}
         <div className="mb-12 pb-12 border-b border-gray-700">
           <p className="text-sm text-gray-400 mb-4">We accept</p>
-          <div className="flex flex-wrap gap-4">
-            <div className="px-3 py-1 border border-gray-700 rounded text-xs text-gray-400">Visa</div>
-            <div className="px-3 py-1 border border-gray-700 rounded text-xs text-gray-400">Mastercard</div>
-            <div className="px-3 py-1 border border-gray-700 rounded text-xs text-gray-400">MTN MoMo</div>
-            <div className="px-3 py-1 border border-gray-700 rounded text-xs text-gray-400">Paystack</div>
+          <div className="flex flex-wrap items-center gap-3">
+            {paymentLogos.map((logo) => (
+              <div
+                key={logo.alt}
+                className="flex h-9 items-center justify-center rounded-md border border-white/10 bg-black px-3"
+              >
+                <img
+                  src={logo.src}
+                  alt={logo.alt}
+                  loading="lazy"
+                  className="h-5 w-auto object-contain sm:h-6"
+                />
+              </div>
+            ))}
           </div>
         </div>
 

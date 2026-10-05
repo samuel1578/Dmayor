@@ -380,6 +380,15 @@ export function AdminOrderDetail() {
               </p>
             )}
 
+            {/* Phase H0.1 — the full payment record (source/reference/provider/
+                channel) is managed in the Admin Payment Center. */}
+            <Link
+              to={`/admin/payments/${order.id}`}
+              className="mt-2 inline-flex text-xs uppercase tracking-[0.16em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+            >
+              Open payment record
+            </Link>
+
             <label className="mt-4 block">
               <span className="block text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50 mb-2">
                 Set payment status

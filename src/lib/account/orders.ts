@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { OrderPaymentStatus, OrderStatus } from '../supabase';
+import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase';
 
 /**
  * Customer order history data layer (Phase E2).
@@ -159,6 +159,14 @@ export interface OrderDetail {
   customerNote: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Phase H0.1 payment metadata — null until a payment is recorded. */
+  paymentReference: string | null;
+  paymentProvider: string | null;
+  paymentChannel: string | null;
+  paymentSource: PaymentSource | null;
+  paymentUpdatedAt: string | null;
+  /** Set when the order is CURRENTLY marked paid; null otherwise. */
+  paidAt: string | null;
   items: OrderItemDetail[];
 }
 
@@ -189,6 +197,11 @@ function asOrderStatus(value: unknown): OrderStatus {
 function asPaymentStatus(value: unknown): OrderPaymentStatus {
   const text = String(value ?? '');
   return text in PAYMENT_STATUS_LABELS ? (text as OrderPaymentStatus) : 'unpaid';
+}
+
+function asPaymentSource(value: unknown): PaymentSource | null {
+  const text = String(value ?? '');
+  return text === 'manual' || text === 'paystack' ? (text as PaymentSource) : null;
 }
 
 function mapOrderSummary(value: unknown): OrderSummary | null {
@@ -271,6 +284,12 @@ function mapOrderDetail(value: unknown): OrderDetail | null {
     customerNote: asText(row.customer_note),
     createdAt: String(row.created_at ?? ''),
     updatedAt: String(row.updated_at ?? ''),
+    paymentReference: asText(row.payment_reference),
+    paymentProvider: asText(row.payment_provider),
+    paymentChannel: asText(row.payment_channel),
+    paymentSource: asPaymentSource(row.payment_source),
+    paymentUpdatedAt: asText(row.payment_updated_at),
+    paidAt: asText(row.paid_at),
     items: rawItems.map(mapOrderItem).filter((item): item is OrderItemDetail => item !== null),
   };
 }
@@ -288,6 +307,8 @@ const DETAIL_SELECT =
   'id, order_number, status, payment_status, subtotal, shipping_amount, tax_amount, ' +
   'total_amount, currency, recipient_name, phone, address_line1, address_line2, city, ' +
   'region, country, postal_code, customer_note, created_at, updated_at, ' +
+  'payment_reference, payment_provider, payment_channel, payment_source, ' +
+  'payment_updated_at, paid_at, ' +
   'order_items(id, product_id, variant_id, product_name, product_slug, variant_sku, size, ' +
   'colour, unit_price, quantity, line_total, image_url)';
 

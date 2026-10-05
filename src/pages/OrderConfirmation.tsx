@@ -162,6 +162,27 @@ export function OrderConfirmation() {
           <OrderDetailView order={order} />
         </div>
 
+        {/* Phase H0.2 — unpaid orders point to the customer payment center.
+            No active Pay Now here until Phase F. */}
+        {order.paymentStatus === 'unpaid' && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
+            <div>
+              <p className="text-sm font-medium text-ghana-black dark:text-white">
+                Payment outstanding
+              </p>
+              <p className="mt-1 text-xs text-ghana-black/60 dark:text-white/60">
+                No payment has been recorded for this order yet.
+              </p>
+            </div>
+            <Link
+              to={`/account/payments/${order.orderNumber}`}
+              className="text-xs uppercase tracking-[0.16em] text-ghana-green transition-colors duration-200 hover:text-ghana-black dark:hover:text-white"
+            >
+              View Payment
+            </Link>
+          </div>
+        )}
+
         <div className="mt-10 flex flex-wrap items-center gap-3">
           {/* Downloads are generated from the order's current recorded state,
               so this document always matches what the account pages show. */}

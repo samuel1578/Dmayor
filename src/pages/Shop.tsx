@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
@@ -10,6 +11,26 @@ import {
   type PublicCategory,
 } from '../lib/catalogue/products';
 
+/**
+ * GHS price bands for the current catalogue (₵250–₵550+).
+ * Bounds are half-open: `min` inclusive, `max` exclusive, so the bands never
+ * overlap and never leave a gap. `null` means unbounded on that side.
+ */
+const PRICE_RANGES = [
+  { id: 'under-300', label: 'Under ₵300', min: null, max: 300 },
+  { id: '300-399', label: '₵300 - ₵399', min: 300, max: 400 },
+  { id: '400-499', label: '₵400 - ₵499', min: 400, max: 500 },
+  { id: '500-plus', label: '₵500 and above', min: 500, max: null },
+] as const;
+
+type PriceRangeId = (typeof PRICE_RANGES)[number]['id'];
+
+function matchesPriceRange(price: number, range: (typeof PRICE_RANGES)[number]): boolean {
+  if (range.min !== null && price < range.min) return false;
+  if (range.max !== null && price >= range.max) return false;
+  return true;
+}
+
 export function Shop() {
   const sortOptions = ['newest', 'price-low', 'price-high'] as const;
   type SortOption = (typeof sortOptions)[number];
@@ -20,11 +41,24 @@ export function Shop() {
   };
   const [products, setProducts] = useState<CatalogueProductSummary[]>([]);
   const [categories, setCategories] = useState<PublicCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<CatalogueProductSummary | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<PriceRangeId[]>([]);
   const [loading, setLoading] = useState(true);
+
+  /** The URL is the source of truth for the active category (`?category=slug`). */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categorySlug = searchParams.get('category');
+
+  /**
+   * Slug → id. An unknown/invalid slug resolves to `null`, which renders the
+   * full catalogue as All Products instead of an empty grid.
+   */
+  const selectedCategory = useMemo(() => {
+    if (!categorySlug) return null;
+    return categories.find((cat) => cat.slug === categorySlug)?.id ?? null;
+  }, [categories, categorySlug]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,15 +80,41 @@ export function Shop() {
     fetchData();
   }, []);
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p) => p.categoryId === selectedCategory)
-    : products;
+  /**
+   * Category ∩ price (OR across selected bands), then sort.
+   * Each control is independent, so they compose without resetting one another.
+   */
+  const sortedProducts = useMemo(() => {
+    const filtered = products.filter((product) => {
+      const categoryOk = selectedCategory === null || product.categoryId === selectedCategory;
+      const priceOk =
+        selectedPriceRanges.length === 0 ||
+        selectedPriceRanges.some((rangeId) => {
+          const range = PRICE_RANGES.find((entry) => entry.id === rangeId);
+          return range ? matchesPriceRange(product.price, range) : false;
+        });
+      return categoryOk && priceOk;
+    });
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'price-low') return a.price - b.price;
-    if (sortBy === 'price-high') return b.price - a.price;
-    return 0;
-  });
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'price-low') return a.price - b.price;
+      if (sortBy === 'price-high') return b.price - a.price;
+      return 0;
+    });
+  }, [products, selectedCategory, selectedPriceRanges, sortBy]);
+
+  const handleCategorySelect = (slug: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (slug) next.set('category', slug);
+    else next.delete('category');
+    setSearchParams(next);
+  };
+
+  const togglePriceRange = (rangeId: PriceRangeId) => {
+    setSelectedPriceRanges((prev) =>
+      prev.includes(rangeId) ? prev.filter((id) => id !== rangeId) : [...prev, rangeId],
+    );
+  };
 
   const handleQuickView = (product: CatalogueProductSummary) => {
     setSelectedProduct(product);
@@ -100,7 +160,7 @@ export function Shop() {
               <h3 className="text-lg font-bold text-ghana-black dark:text-white mb-4">Categories</h3>
               <div className="space-y-2">
                 <button
-                  onClick={() => setSelectedCategory(null)}
+                  onClick={() => handleCategorySelect(null)}
                   className={`block w-full text-left px-4 py-2 rounded-lg transition-colors ${
                     selectedCategory === null
                       ? 'bg-ghana-green text-white'
@@ -112,7 +172,7 @@ export function Shop() {
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => handleCategorySelect(cat.slug)}
                     className={`block w-full text-left px-4 py-2 rounded-lg transition-colors ${
                       selectedCategory === cat.id
                         ? 'bg-ghana-green text-white'
@@ -128,22 +188,17 @@ export function Shop() {
             <div className="sticky top-20">
               <h3 className="text-lg font-bold text-ghana-black dark:text-white mb-4">Price Range</h3>
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  Under ₵50
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  ₵50 - ₵100
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  ₵100 - ₵200
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  Over ₵200
-                </label>
+                {PRICE_RANGES.map((range) => (
+                  <label key={range.id} className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-2"
+                      checked={selectedPriceRanges.includes(range.id)}
+                      onChange={() => togglePriceRange(range.id)}
+                    />
+                    {range.label}
+                  </label>
+                ))}
               </div>
             </div>
           </motion.aside>

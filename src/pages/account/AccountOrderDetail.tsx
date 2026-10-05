@@ -5,7 +5,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { GlitchBrand } from '../../components/GlitchBrand';
 import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceButton';
 import { OrderDetailView } from '../../components/account/OrderDetailView';
-import { formatOrderDate, getMyOrder, type OrderDetail } from '../../lib/account/orders';
+import {
+  PAYMENT_STATUS_LABELS,
+  formatOrderDate,
+  getMyOrder,
+  type OrderDetail,
+} from '../../lib/account/orders';
 
 /**
  * Order detail (Phase E2) — one order, read-only.
@@ -134,6 +139,23 @@ export function AccountOrderDetail() {
 
       <div className="mt-8">
         <OrderDetailView order={order} />
+      </div>
+
+      {/* Phase H0.2 — restrained payment action area linking to the payment
+          center. Payment metadata is not duplicated here. */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
+        <p className="text-sm text-ghana-black/70 dark:text-white/70">
+          Payment:{' '}
+          <span className="font-medium text-ghana-black dark:text-white">
+            {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+          </span>
+        </p>
+        <Link
+          to={`/account/payments/${order.orderNumber}`}
+          className="text-xs uppercase tracking-[0.16em] text-ghana-green transition-colors duration-200 hover:text-ghana-black dark:hover:text-white"
+        >
+          {order.paymentStatus === 'paid' ? 'Payment Details' : 'View Payment'}
+        </Link>
       </div>
 
       <div className="mt-10 flex flex-wrap items-center gap-3">

@@ -1284,7 +1284,319 @@ Untouched: no Admin behaviour changed and no Admin invoice UI was added. `src/li
 - **Confirm the unresolved commerce rules** (see “Commerce Decisions / Open Questions”): shipping/tax, stock reservation, unpaid-order expiry, cancellation, restock-on-cancel, payment references, customer-visible statuses. In particular, **do not set `commerce_settings.rules_confirmed = true` until the real shipping/tax values are decided**, and implement restock-on-cancel as its own idempotent migration when that rule is confirmed.
 - **Legacy columns:** `products.images` / `products.stock` still exist and are still written by the Admin sync (`products.stock` is re-derived from variant stock by the checkout RPC too). A later cleanup migration can drop the compatibility sync first, then the columns.
 - **Bundle weight:** jsPDF is lazy-loaded, so it never affects the initial download; the main chunk is still ~840 kB (gzip ~235 kB) and route-level code splitting remains the biggest remaining win.
-- **Footer `logo.png` (5.8 MB)** should still be replaced with the optimised asset.
+- **Footer `logo.png` (730,923 bytes ≈ 730.92 kB build output)** should still be replaced with the optimised asset. (An earlier note here said 5.8 MB; the measured source file is 730.92 kB. `og-image.png` is larger at 901.15 kB.)
+
+---
+
+## Sprint: Pre-F/G/H Readiness Investigation
+
+**Type:** investigation only. **No features, migrations, policies, RLS, routes, business rules or UI were changed.** Source files were only *read*; the two files written are the readiness document and this log entry.
+
+**Scope.** Precise readiness report to plan Phase F (Paystack / payment automation), Phase G (fulfilment, restock, shipment operations) and Phase H (launch hardening), deliberately bounded to the requested items — discounts, wishlist, social login, newsletter admin, Blog/Collections CRUD, analytics, email/Brevo, custom domain email and visual redesign were excluded.
+
+**What was inspected.**
+- `supabase/migrations/001–009`: tables, indexes, constraints, policies, grants, triggers, all seven `SECURITY DEFINER` functions, the `is_admin()` dependency, `search_path` handling and `profiles_guard_update`.
+- Money and inventory paths: `create_order_from_cart`, `preview_cart_order`, the admin order RPCs, `commerce_settings`, `order_number_seq`, the `orders` CHECK constraints, and `orders.user_id on delete cascade`.
+- Client code: `src/App.tsx` (route graph and static imports), `src/lib/checkout/orders.ts` (RPC error mapping), `src/lib/account/orders.ts`, `src/lib/orders/invoice.ts`, `src/components/orders/DownloadInvoiceButton.tsx`, `src/components/auth/AuthenticatedRoute.tsx`, `src/pages/auth/CustomerLogin.tsx` / `CustomerSignup.tsx`, `src/contexts/AuthContext.tsx`, `src/components/Footer.tsx`, `src/pages/Contact.tsx`, `src/lib/aboutContent.ts`.
+- Configuration: `vite.config.ts` (`base: './'`), `index.html` (canonical/OG), `public/_redirects`, `.env` (key names only), `.gitignore`, `package.json`, `package-lock.json` (no `paystack`), the `supabase/` tree (no `functions/`), and the absence of `vercel.json` and `.github/workflows`.
+- Production behaviour: live HTTP checks against `https://theproxyshop.vercel.app`.
+
+**Key blockers found.**
+1. **Every route except `/` returns HTTP 404 in production** — verified for `/shop`, `/checkout` and `/order-confirmation/TPS-2026-000001`. `public/_redirects` is Netlify-only syntax that Vercel ignores, no `vercel.json` exists, and `base: './'` means assets would still resolve against the wrong directory on multi-segment paths. No deep link, refresh, bookmark or future Paystack callback works until this pair is fixed. **Must before launch, and it blocks Phase F.**
+2. **No server-side secret surface exists at all** — recorded explicitly so Phase F does not put a Paystack secret into a `VITE_*` variable.
+3. **Permission-model gaps for F:** no payment reference, provider, channel or source columns; no payment attempt/webhook idempotency ledger; no server-side amount verification against `orders.total_amount`.
+4. **Stock/restock rule unresolved:** stock is deducted at order creation, cancellation never restocks, and there is no `restocked_at` marker — adding a naive restock would be double-restock prone.
+5. **The repo is not self-contained:** `003` is missing and the Phase A migration creating `profiles`/`is_admin()`/the signup trigger is not versioned here, though `005`/`006`/`009` depend on it (`009` raises if `is_admin()` is absent).
+6. **The Contact form is a mock** — it awaits a 1-second timer and reports success while discarding the message.
+7. **The footer advertises Visa / Mastercard / MTN MoMo / Paystack** although no payment collection of any kind exists.
+8. **A single 840.51 kB eager JS bundle (gzip 234.57 kB)** contains the entire Admin surface plus Account/Checkout/Orders; there is no `React.lazy` anywhere.
+- No **Critical** security finding exists in the schema/policy/grant layer. The items above are launch-readiness issues; the security-specific notes are two High (no secret store yet; production deep links), several Medium (no payment attribution, no admin action log, `on delete cascade` order loss) and Low (`profiles_guard_update`'s `current_user` caveat, pathname-only redirect state).
+
+**Readiness document created.** `PRE_FGH_READINESS.md` — report ready to plan from, with the required sections: executive summary; Phase F current state / missing pieces / F1–F3 split; Phase G stock-cancellation, tracking fields and G1–G2 split; Phase H performance, security/RLS, production environment, failure paths (15 scenarios), invoice correctness, auth redirects, placeholder-claim audit and H1–H3 split; database/migration gaps; production configuration checklist; owner decisions (10 carried over + 9 new); priority matrix using only **Must before real payments / Must before launch / Can defer**.
+
+**Verification / commands used.** `npm run build` (asset and gzip sizes recorded), `npm run typecheck`, `npm run lint`, `git check-ignore -v .env`, dependency and migration inventory greps, and live HTTP checks of three production URLs. No screenshots, Playwright, Puppeteer or any browser automation.
+
+**Exact files changed.** `PRE_FGH_READINESS.md` (new) and `SPRINT_LOG.md` (this entry). **No** application code, migration, policy, route or configuration file was modified.
 - Deferred sprints: Paystack phase, email notifications, Collections CRUD, Blog CRUD, newsletter admin, password reset UI.
 - Stale `.kilo/worktrees/tree-nest/` worktree causes pre-existing lint noise — not in scope.
 - Optional breakpoint screenshot matrix — explicitly skipped across sprints.
+
+---
+
+## Sprint: Shop Price Filter + Hero Category Deep Links
+**Date:** 2026-10-05
+**Status:** Complete
+**Scope:** Storefront only — `src/pages/Shop.tsx` + this log entry. No schema, product data, Admin, Product Detail, Cart, Checkout, Orders, Account, Paystack, Navbar, Footer, hero motion or imagery changes.
+
+### Price-filter root cause
+The Price Range checkboxes in `src/pages/Shop.tsx` were purely presentational: plain `<input type="checkbox">` elements with no `checked`, no `onChange`, no state and no price-filtering code anywhere in the file. Only category and sort were applied to the product list, so toggling a range only flipped the visual box. Prices were never the problem — `CatalogueProductSummary.price` is already a plain number (built by `toNumber`, not a string and not minor units). The visible bands were also stale dollar-era values (Under ₵50 / ₵50-₵100 / ₵100-₵200 / Over ₵200) against a catalogue priced ~₵250-₵550+, so even wired up they would have matched almost nothing.
+
+### New GHS ranges (half-open: min inclusive, max exclusive — no overlap, no gap)
+- Under ₵300 → `price < 300`
+- ₵300 - ₵399 → `price >= 300 && price < 400`
+- ₵400 - ₵499 → `price >= 400 && price < 500`
+- ₵500 and above → `price >= 500`
+
+Defined once as a module-level `PRICE_RANGES` const in `Shop.tsx` with `matchesPriceRange(price, range)`; the checkboxes are controlled and toggle ids in `selectedPriceRanges: PriceRangeId[]`.
+
+### Multi-range semantics
+OR. A product matches when it satisfies ANY selected band (`selectedPriceRanges.some(...)`). No selection = every price passes. Example: "Under ₵300" + "₵500 and above" shows both ₵250 and ₵550.
+
+### Composition
+Category, price and sort are one derived pipeline in a single `useMemo`: filter by category AND price, then sort. Each control writes only its own state, so no control resets another — e.g. Shirts + ₵300-₵399 + Price: Low to High returns only Shirts in that band, ordered ascending.
+
+### Category URL parameter architecture
+`useSearchParams` (react-router-dom 7, `BrowserRouter` already in `App.tsx`) is the source of truth. `?category=` holds a category **slug**, never a database UUID. The slug is resolved to the id with `categories.find(c => c.slug === categorySlug)` and compared against `product.categoryId`. Category clicks clone the existing `URLSearchParams`, `set('category', slug)` or `delete('category')` for All Products, then `setSearchParams(...)` — SPA push navigation, no reload, other params preserved, browser back/forward works. An unknown slug (`/shop?category=does-not-exist`) resolves to `null` and behaves as All Products instead of an empty grid; the URL is left as-is. Price bands deliberately stay component state this sprint (not URL-encoded).
+
+### Hero CTA mappings
+Already correct in `src/lib/hero.ts`, verified and left untouched (`HeroNarrative` renders `<Link to={chapter.href}>`):
+- Shirts → `/shop?category=shirts`
+- Trousers → `/shop?category=trousers`
+- Hoodies → `/shop?category=hoodies`
+- Shoes → `/shop?category=shoes`
+
+### Files changed
+- `src/pages/Shop.tsx` — price filter wired up + new bands, category driven by URL slug param, composed filter/sort pipeline.
+- `SPRINT_LOG.md` — this entry.
+- **Not changed:** `src/lib/hero.ts`, `src/components/hero/*` (already correct).
+
+### Verification
+`npm run typecheck` clean; `npm run lint` 0 errors (8 pre-existing warnings in `src/contexts/*` and the stale `.kilo/worktrees/tree-nest/` copy, none in Shop); `npm run build` succeeded (same pre-existing chunk-size / browserslist notices). Manual test sequence: each band alone; two bands together; Shirts + band + sort; direct `/shop?category=shirts`; refresh keeps Shirts selected; hero CTAs for all four categories.
+
+**SQL: no migration required** — category slugs already exist (`supabase/migrations/002_seed_proxy_shop_categories.sql` seeds shirts/trousers/hoodies/shoes) and no schema, policy or product data was touched.
+
+### Follow-up — hero CTA hit-testing (`src/components/hero/HeroNarrative.tsx`)
+Manual testing showed the "Explore …" buttons were dead. Root cause: all six `NarrativeShell` layers are full-bleed `absolute inset-0` stacked in DOM order, and the closing narrative is the last sibling — so it covered every chapter CTA with an invisible-but-hit-testable panel. Fix: each shell derives a `pointerEvents` MotionValue from its own opacity (`> 0.5 → auto`, else `none`), so only the shell actually on screen accepts clicks. Motion, imagery, GlitchBrand placements and scroll windows untouched. `npm run typecheck`, `npm run lint` (0 errors) and `npm run build` all pass.
+
+---
+
+## Sprint: Footer Payment Brand Logos
+**Date:** 2026-10-05
+**Status:** Complete
+**Scope:** The payment-method row of `src/components/Footer.tsx` only. Checkout, payment/Paystack integration, Navbar, public routes, auth, orders, Admin, Supabase and the footer navigation structure were not touched.
+
+### Changes
+- **Text payment pills removed.** The four bordered text divs (Visa / Mastercard / MTN MoMo / Paystack) were replaced by real brand images. No text pills left behind.
+- **MTN MoMo removed** from the footer entirely (and it exists nowhere else in the codebase).
+- **Local assets only** from `public/payment-logos/` — no remote fetches, no hotlinking: `visa.jpeg` (JPEG, 1335x430), `mastercard.png` (PNG, 1000x1000), `paystack.png` (PNG, 2400x455). Mixed JPEG + PNG supported as-is; nothing renamed or moved.
+- **Visual treatment:** a shared `h-9` chip (`rounded-md border border-white/10 bg-black px-3`) per mark, image `h-5 sm:h-6 w-auto object-contain`. That lands the logos at 20px mobile / 24px desktop, keeps aspect ratio, allows natural width, no stretching, no recolouring and no CSS filters. Chips are opaque black because the Visa JPEG and the Mastercard PNG both carry a pure-`#000000` background (verified by pixel probe) — they blend seamlessly into the tile instead of showing a black rectangle against the footer's `#111111`; Paystack's transparent PNG sits on the same tile, so all three read consistently. Hairline `white/10` border keeps the tile legible in both themes.
+- **Accessibility:** descriptive `alt` text on every mark — `Visa`, `Mastercard`, `Paystack` (not empty alt).
+- **Responsive:** `flex flex-wrap` + `gap-3` with a compact section, so marks wrap on narrow screens and never overflow the footer.
+
+### Files changed
+- `src/components/Footer.tsx`
+- `SPRINT_LOG.md` (this entry)
+
+### Verification
+`npm run typecheck` clean, `npm run lint` 0 errors (same 8 pre-existing warnings), `npm run build` succeeded. No screenshots, Playwright or Puppeteer.
+
+**SQL: no migration required** — pure front-end asset/visual change; no schema, policy or data touched.
+
+---
+
+## Sprint: Phase H0.1 — Payment Metadata + Admin Payment Center
+**Date:** 2026-10-05
+**Status:** Complete
+**Scope:** Payment metadata foundation + Admin payment management + a customer payment placeholder. **No Paystack integration of any kind.** No callback route, no webhook, no initialization, no verification, no secret, no SDK.
+
+### Migration
+- **New forward-only migration:** `supabase/migrations/010_payment_metadata_foundation.sql` (`001`–`009` untouched). Idempotent: `add column if not exists`, `drop constraint if exists` + re-add, `drop trigger if exists` + create, `create or replace function`, guarded precondition `do $$` block.
+
+### New columns on `public.orders`
+- `payment_reference text` — optional external bank/MoMo/transfer reference recorded by Admin. Never generated by the app.
+- `payment_provider text` — nullable free text (no auto-population; `Paystack` is not written).
+- `payment_channel text` — nullable free text (no invented value).
+- `payment_source text` — nullable, constrained to `manual | paystack`.
+- `payment_updated_at timestamptz` — when the payment state/metadata last changed.
+- New index `idx_orders_payment_source` for the queue filter. `paid_at` retained unchanged.
+
+### `payment_updated_at` vs `paid_at`
+- `paid_at` = when the order is CURRENTLY marked paid (cleared when it moves away from paid).
+- `payment_updated_at` = last payment-state/metadata change, refreshed by a plain `BEFORE UPDATE` trigger (`set_orders_payment_updated_at`) that fires only when `payment_status`, `payment_reference`, `payment_provider`, `payment_channel` or `payment_source` actually changes. It never touches `paid_at` or order status.
+
+### Admin payment RPCs (admin-only, SECURITY DEFINER)
+Every function uses the Phase E3 pattern: `set search_path = public, pg_temp`, fail-closed `if not coalesce(public.is_admin(), false)`, `revoke execute` from `public`/`anon`, `grant execute` to `authenticated`.
+- `admin_list_payments(p_search, p_payment_status, p_payment_source, p_limit, p_offset)` — returns order id, order number, customer name/email, total, currency, payment status/source/provider/channel/reference, `paid_at`, `payment_updated_at`, `created_at`. Search covers order number, recipient/customer name, email and payment reference. Newest orders first; limit clamped 1–200.
+- `admin_get_payment(p_order_id)` — payment-focused jsonb (order summary + customer + all payment fields). Deliberately NOT the full Admin order payload.
+- `admin_set_manual_payment(p_order_id, p_payment_status, p_reference, p_provider, p_channel)` — the single manual-payment write path. No money moves, no network call, order status untouched.
+
+### Existing order-payment RPC (Option A — no duplicated logic)
+- `admin_set_order_payment_status(uuid, text)` is **preserved but refactored to delegate to `admin_set_manual_payment`**. Existing error contract is unchanged (`invalid_status`, `no_change`, `order_not_found`), and it now also records `payment_source = 'manual'` — the correct attribution. One payment-write implementation, no drift; existing Admin order functionality is not weakened.
+
+### Payment-source semantics
+- `manual` is the only source actively written, and it is written **server-side**.
+- `paystack` exists only as a forward-compatible allowed value; nothing writes it in this sprint. The Paystack filter may show zero results until Phase F — expected.
+- New orders keep `payment_source = null` until an Admin records a payment. No source is invented at checkout.
+
+### Manual-payment rules
+- The client never sends a payment source and there is **no source selector** in the UI.
+- Optional reference/provider/channel are only written when supplied (blank/null keeps the stored value). Length caps: reference 200, provider/channel 100.
+- `paid_at` is set when the order becomes paid (preserving the original moment if metadata is re-recorded while already paid) and cleared otherwise. `no_change` is raised when the status is unchanged and no new metadata is supplied.
+- Payment status and order status remain **separate domains** — no `paid → confirmed` or `refunded → cancelled` coupling.
+
+### Admin routes
+- `/admin/payments` → `AdminPayments` (payment queue/history).
+- `/admin/payments/:orderId` → `AdminPaymentDetail`.
+- Both live under `AdminRoute` → `AdminLayout`; **Payments** is enabled in the Admin sidebar (Overview, Products, Categories, Orders, Payments). Collections/Blog remain deferred.
+
+### Admin payment list
+- Columns: Order, Customer, Email, Amount, Payment status, Source, Provider, Channel, Reference, Updated, View.
+- Filters: payment status (All / Unpaid / Paid / Failed / Refunded) and payment source (All / Manual / Paystack). Debounced search. Server-side RPC paging with "Show more" — never a client-side full-table load.
+
+### Admin payment detail
+- Order (number, order status, created date, amount, link to `/admin/orders/:id`), Customer (name, email, phone), Payment record (status, source, provider, channel, reference, paid_at, payment_updated_at), and a Manual Update form (status + optional reference/provider/channel).
+- Copy: “This records a payment manually. No payment is collected by this action.” Confirmed via `ConfirmDialog` for Paid (“This marks the order as paid manually. No money will be charged.”) and Refunded (“This records the payment as refunded. This does not issue a refund through a payment provider.”).
+
+### Customer payment view + Pay Now placeholder
+- `OrderDetail` now carries the payment metadata; `OrderDetailView` (shared by `/order-confirmation/:orderNumber` and `/account/orders/:orderNumber`) shows reference, method, paid-at and last-updated **when present**, plus a disabled **Pay Now** button for `unpaid`/`failed` with the copy “Online payment is not available yet. Nothing is charged when you place an order.” Phase F replaces this placeholder with real Paystack initialization/verification and real copy.
+
+### Admin overview
+- One compact Payments section with real counts (Unpaid / Paid / Failed / Refunded) and a link to the payment center. No fake revenue charts; the E3 paid-order value is reused as-is.
+
+### Types / data layer
+- `src/lib/admin/payments.ts` — all Admin payment RPC calls live here (no RPC calls scattered in pages), with defensive parsing, no `any`, and a payment-specific error mapper.
+- `src/lib/supabase.ts` — `OrderRow` gains `payment_reference`, `payment_provider`, `payment_channel`, `payment_source` (`PaymentSource | null`), `payment_updated_at`, `paid_at`; new `PaymentSource` type.
+- `src/lib/account/orders.ts` — `OrderDetail` + `DETAIL_SELECT` + mapper extended with the payment fields (customer reads their own row via the existing RLS SELECT).
+
+### Security
+- No service-role key in Vite; no Paystack key anywhere; all Admin reads/writes gated by `public.is_admin()`.
+- Normal customers cannot succeed at Admin payment RPCs: they are granted only to `authenticated` but re-check `is_admin()` and raise `not_authorized` for a non-admin.
+- Customer `orders`/`order_items` SELECT access is unchanged; **no new table grants, no broad UPDATE grants**.
+- `payment_source` cannot be chosen by the client; the database hard-codes `manual` in `admin_set_manual_payment`.
+
+### Paystack — NOT implemented
+No callback route, no webhook, no initialization, no verification, no secret, no SDK, no dependency. No fake transactions or references; no order is ever auto-marked paid.
+
+### Files changed
+- `supabase/migrations/010_payment_metadata_foundation.sql` (new)
+- `src/lib/admin/payments.ts` (new)
+- `src/pages/admin/AdminPayments.tsx` (new)
+- `src/pages/admin/AdminPaymentDetail.tsx` (new)
+- `src/App.tsx` — Admin payment routes
+- `src/components/admin/AdminSidebar.tsx` — Payments nav
+- `src/pages/admin/AdminDashboard.tsx` — payment operations section
+- `src/lib/supabase.ts` — `OrderRow` payment fields + `PaymentSource`
+- `src/lib/account/orders.ts` — customer `OrderDetail` payment fields
+- `src/components/account/OrderDetailView.tsx` — customer payment details + Pay Now placeholder
+- `SPRINT_LOG.md` (this entry)
+
+### Verification
+- `npm run typecheck` → clean.
+- `npm run lint` → 0 errors (same 8 pre-existing warnings in `src/contexts/*` and the stale `.kilo/worktrees/tree-nest/` copy).
+- `npm run build` → succeeded.
+- No screenshots, Playwright or Puppeteer. Migration not executed here (manual, as with all migrations in this repo).
+
+### Manual test
+Admin → **Payments** → open an unpaid order → set status **Paid** with a reference → confirm → return to **Admin Orders** → the order shows **Paid** there too (both surfaces read the same `orders.payment_status`, and the order page now attributes the change to `manual`).
+
+---
+
+## Current state (after Phase H0.1)
+**Live and working:** everything in the “Current state (after Phase E4)” snapshot, **plus** payment metadata (`payment_reference`, `payment_provider`, `payment_channel`, `payment_source`, `payment_updated_at`), the **Admin Payment Center** (`/admin/payments` list + `/admin/payments/:orderId` detail with manual status/reference/provider/channel recording, server-enforced `payment_source = manual`), the compact payments section on the Admin overview, and a customer-facing payment details block with a **Pay Now placeholder** on the shared order view.
+
+- **Supersedes the “Current state (after Phase E4)” snapshot** for anything payment-metadata related.
+- **Still not built:** **Paystack or any payment automation** (payment is manual: unpaid / paid / failed / refunded; the customer Pay Now button is a disabled placeholder), payment webhooks/verification, an attempt/event ledger, refunds processing, email notifications, automatic restocking on cancellation, customer-initiated cancellation, carrier/tracking integration, Collections CRUD, Blog CRUD, password reset UI, wishlist, social login, analytics, newsletter admin.
+- **Migrations in this repo are all manual, local only:** `004`, `005`, `006`, `007`, `008`, `009`, **`010`**. Nothing is applied remotely by the app.
+
+## Open follow-ups (current — after Phase H0.1)
+- **Run `supabase/migrations/010_payment_metadata_foundation.sql` manually in Supabase** — the Admin Payment Center, payment fields and the customer payment details are inert until it is applied (after `009`).
+- **Phase F (Paystack):** initialize/verify server-side in an Edge Function with secrets (never `VITE_*`), add callback/webhook handling, and replace the customer “Online payment is not available yet.” placeholder with real initialization/verification. Populate `payment_source = 'paystack'`, real `payment_reference`/provider/channel and a verification result. No Paystack code exists yet.
+- **Confirm the unresolved commerce rules** (shipping/tax, stock reservation, unpaid-order expiry, cancellation, restock-on-cancel, payment references, customer-visible statuses). In particular, **do not set `commerce_settings.rules_confirmed = true` until the real shipping/tax values are decided**.
+- **Legacy columns:** `products.images` / `products.stock` still exist and are still written by the Admin sync. A later cleanup migration can drop the compatibility sync first, then the columns.
+- **Bundle weight:** the main chunk is now ~869 kB (gzip ~239 kB); route-level code splitting remains the biggest remaining win.
+- **Footer `logo.png` (730.92 kB) / `og-image.png` (901.15 kB)** should still be compressed or replaced.
+---
+
+## Sprint: Phase H0.2 — Customer Payment Center
+**Date:** 2026-10-05
+**Status:** Complete
+**Scope:** Customer-facing payment center built on the H0.1 payment metadata, plus order/confirmation/overview integration. **No Paystack integration of any kind** — no initialization, no callback route, no webhook, no verification, no secret keys, no fabricated references/attempts. Online payments are **not active**.
+
+### Routes
+- `/account/payments` → `AccountPayments` (payment list).
+- `/account/payments/:orderNumber` → `AccountPaymentDetail`.
+- Both under the existing `AuthenticatedRoute` → `AccountLayout`, so a signed-out visitor is redirected to `/login` and returned afterwards.
+
+### Account navigation
+- `AccountLayout` nav is now: Overview, Profile, Addresses, Orders, **Payments** (desktop side nav and the mobile horizontal nav both read the same `navItems` array).
+
+### Payment data layer (`src/lib/account/payments.ts`)
+- Payment records are **derived from the customer's own `orders` rows** — no new customer-readable transaction table, no SQL.
+- Functions: `listMyPayments(userId)` (one select, newest first), `getMyPayment(userId, orderNumber)` (one select, `maybeSingle`), `getRecentPayment(userId)` (same select + `limit 1`), and the pure helper `countMyPaymentsByStatus(payments)`. Single queries only — no N+1.
+- Honest display helpers: `paymentSourceLabel` (`Manual` / `Paystack` / `Not recorded`), `paymentProviderLabel` (`Not connected`), `paymentChannelLabel`, `paymentReferenceLabel` (`—`), `PAYMENT_STATE_TITLES`, and `paymentStateNote`.
+- `CustomerPayment` carries order status, totals, status, source, provider, channel, reference, `paid_at`, `payment_updated_at`, `created_at`.
+
+### Payment list (`/account/payments`)
+- Cards (no wide table, no horizontal scrolling) showing order number, order date, total, payment state + status, source, provider, channel, reference and the latest payment update. Absent metadata shows neutral copy (`Not recorded` / `Not connected` / `—` / `No update recorded`) — never invented values.
+- Filters: **All / Unpaid / Paid / Failed / Refunded**, applied to the loaded list (no extra requests, no analytics).
+
+### Payment detail (`/account/payments/:orderNumber`)
+- Payment: status (text), source (with `Recorded manually` when `manual`), provider, channel, reference, amount, currency, `paid_at` when present, and last payment update.
+- Related order: order number, order status, link to `/account/orders/:orderNumber`.
+- Invoice: the existing `DownloadInvoiceButton` (generated from the order's current recorded state).
+- Does not duplicate the full order detail page.
+
+### Payment states
+- **Unpaid** — "Payment outstanding" with a disabled **Pay Now** button and the copy "Online payment is not available yet. Nothing is charged when you place an order."
+- **Failed** — "Payment failed" with a disabled **Retry Payment** button and copy that retrying is not possible yet (no retry network call exists).
+- **Paid** — "Payment received" with provider, channel, reference and paid date; manual records say "Recorded manually by our team." — Paystack is never implied.
+- **Refunded** — "Refund recorded"; manual records make clear it is a recorded status only and no automated refund was issued.
+- No fake loading or fake payment success anywhere.
+
+### Order detail integration (`/account/orders/:orderNumber`)
+- A restrained payment action area shows `Payment: <status>` and links to `/account/payments/:orderNumber` — **"View Payment"** when unpaid, **"Payment Details"** when paid. Payment metadata is not duplicated.
+
+### Order confirmation integration (`/order-confirmation/:orderNumber`)
+- When unpaid, a "Payment outstanding" panel with a **View Payment** link to `/account/payments/:orderNumber`. No active Pay Now until Phase F.
+
+### Account overview
+- New **Payments** panel: Unpaid orders count, Paid orders count and the most recent payment state (order number + state), with a **View Payments** CTA. One list query feeds both counts and the recent payment. No wallet, balance, loyalty points or card details.
+
+### GlitchBrand
+- `GlitchBrand size="corner"` on both `/account/payments` and `/account/payments/:orderNumber`, placed beside/above the heading so it never overpowers the payment-status information. No CSS duplication.
+
+### Mobile & accessibility
+- Payment cards and the detail layout stack cleanly (flex/grid, no wide tables). Payment state is always rendered as text, never colour-only; coloured labels are accompanied by explicit state titles/labels. Disabled buttons carry `disabled`, `aria-disabled`, an accessible name and `aria-describedby` explanatory copy.
+
+### Security
+- Customers can only read their own payment/order metadata: every query filters by session `user_id` and the existing `orders` RLS policy (`auth.uid() = user_id`) authorizes row-by-row. A hand-edited URL to another customer's order number returns the same safe "not found" state as an invalid one.
+- **No** customer UPDATE policies, **no** payment-status mutations and **no** direct order updates were added. Payment status remains Admin-only (H0.1). RLS remains authoritative.
+
+### SQL
+- **No new migration.** H0.1 already added every required field; the payment center reads the existing `orders` columns.
+
+### Files changed
+- `src/lib/account/payments.ts` (new)
+- `src/pages/account/AccountPayments.tsx` (new)
+- `src/pages/account/AccountPaymentDetail.tsx` (new)
+- `src/App.tsx` — account payment routes
+- `src/components/account/AccountLayout.tsx` — Payments nav item
+- `src/pages/account/AccountOverview.tsx` — payment summary panel
+- `src/pages/account/AccountOrderDetail.tsx` — payment action area
+- `src/pages/OrderConfirmation.tsx` — unpaid "Payment outstanding" + View Payment
+- `SPRINT_LOG.md` (this entry)
+
+### Verification
+- `npm run typecheck` → exit 0, clean.
+- `npm run lint` → exit 0, 0 errors (same 8 pre-existing warnings).
+- `npm run build` → exit 0.
+- No screenshots, Playwright or Puppeteer. No SQL executed (no migration in this sprint).
+
+### Manual test
+Customer → **Payments** → open an unpaid order → see the recorded metadata and a **disabled Pay Now** → Admin marks Paid manually with a reference → customer refreshes → the payment page shows **Paid · Manual** with the reference.
+
+---
+
+## Current state (after Phase H0.2)
+**Live and working:** everything in the “Current state (after Phase H0.1)” snapshot, **plus** the **Customer Payment Center** (`/account/payments` list with All/Unpaid/Paid/Failed/Refunded filters and `/account/payments/:orderNumber` detail), the Payments account-nav item, a real payment summary panel on `/account/overview`, restrained payment links on `/account/orders/:orderNumber` and `/order-confirmation/:orderNumber`, and state-specific unpaid/failed/paid/refunded copy with informational (disabled) Pay Now / Retry buttons.
+
+- **Supersedes the “Current state (after Phase H0.1)” snapshot** for anything customer-payment related.
+- **Still not built:** **Paystack or any payment automation** — the customer Pay Now / Retry buttons are disabled placeholders, `paystack` never appears in real data, and there is no provider connection. Also still absent: payment webhooks/verification, an attempt/event ledger, refunds processing, email notifications, restocking on cancellation, customer cancellation, carrier/tracking, Collections/Blog CRUD, password reset, wishlist, social login, analytics, newsletter admin.
+- **Migrations in this repo are all manual, local only:** `004`–`010`. Nothing is applied remotely by the app.
+
+## Open follow-ups (current — after Phase H0.2)
+- **Phase F (Paystack):** initialize/verify server-side in an Edge Function with secrets (never `VITE_*`), add callback/webhook handling, then replace the customer “Online payment is not available yet.” placeholders with real initialization/verification and enable the Pay Now / Retry CTAs. Populate `payment_source = 'paystack'` and the real reference/provider/channel.
+- **Run `supabase/migrations/010_payment_metadata_foundation.sql` manually in Supabase** if not already applied — both the Admin and now the Customer payment surfaces are inert without it.
+- **Confirm the unresolved commerce rules** (shipping/tax, stock reservation, unpaid-order expiry, cancellation, restock-on-cancel, payment references, customer-visible statuses). Do not set `commerce_settings.rules_confirmed = true` until the real shipping/tax values are decided.
+- **Bundle weight:** route-level code splitting remains the biggest remaining win (Admin + Account are eagerly imported).
+- **Footer `logo.png` / `og-image.png`** should still be compressed or replaced.

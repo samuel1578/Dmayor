@@ -1,6 +1,6 @@
 import { MapPin } from 'lucide-react';
 import { OrderStatusTimeline } from './OrderStatusTimeline';
-import { PAYMENT_STATUS_LABELS, type OrderDetail } from '../../lib/account/orders';
+import { PAYMENT_STATUS_LABELS, formatOrderDate, type OrderDetail } from '../../lib/account/orders';
 import { formatGhs } from '../../lib/catalogue/products';
 import { ProductImagePlaceholder } from '../ProductImagePlaceholder';
 
@@ -51,6 +51,68 @@ export function OrderDetailView({ order }: { order: OrderDetail }) {
             {PAYMENT_STATUS_NOTES[order.paymentStatus]} Payment is recorded separately from order
             progress.
           </p>
+
+          {/* Payment metadata recorded by Admin — shown only when present. */}
+          {(order.paymentReference ||
+            order.paymentProvider ||
+            order.paymentChannel ||
+            order.paymentUpdatedAt ||
+            order.paidAt) && (
+            <dl className="mt-4 space-y-2 border-t border-ghana-black/10 pt-4 text-xs dark:border-white/10">
+              {order.paymentReference && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ghana-black/50 dark:text-white/50">Reference</dt>
+                  <dd className="break-all text-right font-mono text-ghana-black/80 dark:text-white/80">
+                    {order.paymentReference}
+                  </dd>
+                </div>
+              )}
+              {(order.paymentProvider || order.paymentChannel) && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ghana-black/50 dark:text-white/50">Method</dt>
+                  <dd className="text-right text-ghana-black/80 dark:text-white/80">
+                    {[order.paymentProvider, order.paymentChannel]
+                      .filter((part): part is string => Boolean(part))
+                      .join(' · ')}
+                  </dd>
+                </div>
+              )}
+              {order.paidAt && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ghana-black/50 dark:text-white/50">Paid</dt>
+                  <dd className="text-right text-ghana-black/80 dark:text-white/80">
+                    {formatOrderDate(order.paidAt, true)}
+                  </dd>
+                </div>
+              )}
+              {order.paymentUpdatedAt && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ghana-black/50 dark:text-white/50">Payment updated</dt>
+                  <dd className="text-right text-ghana-black/80 dark:text-white/80">
+                    {formatOrderDate(order.paymentUpdatedAt, true)}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          {/* Pay Now placeholder — Phase F replaces this copy with real Paystack
+              initialization and verification. It never charges anything today. */}
+          {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') && (
+            <div className="mt-4 border-t border-ghana-black/10 pt-4 dark:border-white/10">
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="w-full cursor-not-allowed rounded-lg bg-ghana-green px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white opacity-50 sm:w-auto"
+              >
+                Pay Now
+              </button>
+              <p className="mt-2 text-xs text-ghana-black/60 dark:text-white/60">
+                Online payment is not available yet. Nothing is charged when you place an order.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -314,9 +314,22 @@ export interface OrderRow {
   country: string;
   postal_code: string | null;
   customer_note: string | null;
+  /** Phase H0.1 payment metadata. `null` until a payment is recorded. */
+  payment_reference: string | null;
+  payment_provider: string | null;
+  payment_channel: string | null;
+  /** `manual` (written server-side today) or `paystack` (Phase F only). */
+  payment_source: PaymentSource | null;
+  /** When the payment state/metadata last changed — distinct from paid_at. */
+  payment_updated_at: string | null;
+  /** Set when the order is CURRENTLY marked paid (E3); null otherwise. */
+  paid_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** Phase H0.1: attribution for a recorded payment. */
+export type PaymentSource = 'manual' | 'paystack';
 
 /** Orders are created by the checkout RPC only — the browser never inserts one. */
 export type OrderInsert = never;

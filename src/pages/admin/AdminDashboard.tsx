@@ -94,6 +94,15 @@ export function AdminDashboard() {
     },
   ];
 
+  // Phase H0.1 — payment operations. Real rows only; failed/refunded are
+  // deliberately separate from the generic order queue above.
+  const paymentMetrics: { label: string; value: number | string | undefined }[] = [
+    { label: 'Unpaid', value: orderStats?.unpaid },
+    { label: 'Paid', value: orderStats?.paid },
+    { label: 'Failed', value: orderStats?.failed },
+    { label: 'Refunded', value: orderStats?.refunded },
+  ];
+
   const deferred = ['Collections', 'Blog publishing', 'Automated payments & receipts'];
 
   return (
@@ -176,6 +185,40 @@ export function AdminDashboard() {
         <p className="mt-3 text-xs text-ghana-black/50 dark:text-white/50">
           Counts come from real orders. Payment status is maintained manually — there is no
           automated payment provider yet, and nothing here is a projected revenue figure.
+        </p>
+      </div>
+
+      {/* Phase H0.1 — compact payment operations section (real data only). */}
+      <div className="mt-12">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-display text-xl text-ghana-black dark:text-white">Payments</h2>
+          <Link
+            to="/admin/payments"
+            className="text-[10px] uppercase tracking-[0.22em] text-ghana-green hover:text-ghana-black dark:hover:text-white"
+          >
+            Open payment center
+          </Link>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {paymentMetrics.map((metric) => (
+            <div
+              key={metric.label}
+              className="border border-ghana-black/10 dark:border-white/10 rounded-lg p-5 bg-white/60 dark:bg-white/[0.03]"
+            >
+              <p className="font-display text-3xl text-ghana-black dark:text-white">
+                {loadingStats ? '···' : metric.value ?? '—'}
+              </p>
+              <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-ghana-black/50 dark:text-white/50">
+                {metric.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-3 text-xs text-ghana-black/50 dark:text-white/50">
+          Payment records are entered by hand. No payment provider is connected and nothing is
+          charged from the Admin area.
         </p>
       </div>
 
