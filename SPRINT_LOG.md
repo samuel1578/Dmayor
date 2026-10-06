@@ -1600,3 +1600,32 @@ Customer → **Payments** → open an unpaid order → see the recorded metadata
 - **Confirm the unresolved commerce rules** (shipping/tax, stock reservation, unpaid-order expiry, cancellation, restock-on-cancel, payment references, customer-visible statuses). Do not set `commerce_settings.rules_confirmed = true` until the real shipping/tax values are decided.
 - **Bundle weight:** route-level code splitting remains the biggest remaining win (Admin + Account are eagerly imported).
 - **Footer `logo.png` / `og-image.png`** should still be compressed or replaced.
+
+---
+
+## Sprint: Vercel SPA Deep-Link Routing Fix
+**Type:** hosting/build configuration only. **No application code, routes, auth, payments, orders, Supabase, migrations or UI were changed.**
+
+### Root cause
+Every URL except `/` returned HTTP 404 in production (`/admin/login`, `/admin`, `/shop` all verified 404; `/` and `/assets/*` returned 200). Two paired defects: (1) no Vercel rewrite existed — `public/_redirects` is Netlify-only syntax that Vercel ignores, so `/* /index.html 200` never applied; (2) `vite.config.ts` used `base: './'`, so the shell referenced `./assets/…`, which a browser loading `/admin/login` would resolve to `/admin/assets/…` (404, or HTML served to a module script) and boot no JS even if the shell had been served.
+
+### Fix
+- **`vercel.json` added (new file, repo root):** `{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}`. Vercel resolves real files first, so `/assets/*`, `/payment-logos/*` and other static assets keep serving from the filesystem; every other path falls through to the SPA shell. This is what makes direct navigation, refresh and bookmarks work for `/admin/login`, `/admin`, `/shop`, `/product/:slug`, `/checkout`, `/order-confirmation/:orderNumber`, `/account/*` and the future Paystack return/callback URL.
+- **`vite.config.ts`:** `base: './'` → `base: '/'` (one line). Built asset references are now root-absolute (`/assets/index-Mf_s9mP4.js`, `/assets/index-zdwozoyA.css`, `/assets/FAVICON-BdgQMbyy.png`), so a deep link served the shell loads the same bundle as `/`.
+- `public/_redirects` left untouched (inert on Vercel, out of scope this sprint). `/og-image.png` 404 (asset removed from `public/` in the previous commit) deliberately not addressed here.
+- Prior readiness note at `SPRINT_LOG.md` ("Every route except `/` returns HTTP 404 in production") is now resolved by this pair; both are required — either one alone still fails.
+
+### Purpose / dependency
+Deep-link and refresh support for the whole React Router surface, and a hard prerequisite for **Phase F**: a Paystack return/callback URL (e.g. `/payment/callback`) must be able to load directly from the provider redirect, which is impossible without the SPA rewrite plus root-absolute assets.
+
+### Files changed
+- `vercel.json` (new)
+- `vite.config.ts` (base path)
+- `SPRINT_LOG.md` (this entry)
+
+### Verification
+- `npm run typecheck` → exit 0.
+- `npm run lint` → exit 0, 0 errors (same 8 pre-existing warnings, incl. the stale `.kilo/worktrees/tree-nest/` worktree).
+- `npm run build` → exit 0, 2442 modules; `dist/index.html` emits `/assets/…` (root-absolute), no `./assets/…` references.
+- `git status`: only `vite.config.ts` modified + `vercel.json` untracked — no file under `src/` touched.
+- **Not yet live:** production URLs can only be re-tested after Vercel redeploys this commit.
