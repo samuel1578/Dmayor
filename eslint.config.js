@@ -5,7 +5,11 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // The Edge Functions under supabase/functions run on the Deno runtime (Deno
+  // globals, npm:/URL module specifiers) and are not part of the Vite app, so
+  // they are linted/typechecked by the Deno toolchain (see
+  // supabase/functions/deno.json) rather than this browser-oriented config.
+  { ignores: ['dist', 'supabase/functions'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

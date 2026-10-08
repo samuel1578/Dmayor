@@ -331,6 +331,45 @@ export interface OrderRow {
 /** Phase H0.1: attribution for a recorded payment. */
 export type PaymentSource = 'manual' | 'paystack';
 
+/**
+ * Phase F1: internal state of one external payment initialization. Deliberately
+ * NOT a Paystack status — it is our own attempt lifecycle.
+ */
+export type PaymentAttemptStatus =
+  | 'initialized'
+  | 'pending'
+  | 'success'
+  | 'failed'
+  | 'abandoned';
+
+/**
+ * Phase F1 payment attempt (one row per Paystack initialization/attempt).
+ * Multiple attempts may exist per order; only the successful one becomes the
+ * payment attribution. `provider_response` / `access_code` are server-only and
+ * are not granted to customer sessions.
+ */
+export interface PaymentAttemptRow {
+  id: string;
+  order_id: string;
+  user_id: string;
+  provider: string;
+  reference: string;
+  status: PaymentAttemptStatus;
+  amount: number;
+  currency: string;
+  channel: string | null;
+  authorization_url: string | null;
+  access_code: string | null;
+  provider_response: Json | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Attempts are created only server-side (Edge Functions + service role). */
+export type PaymentAttemptInsert = never;
+export type PaymentAttemptUpdate = never;
+
 /** Orders are created by the checkout RPC only — the browser never inserts one. */
 export type OrderInsert = never;
 /** Customers may not mutate orders (status, payment_status, totals, delete). */
@@ -423,6 +462,11 @@ export type Database = {
         Row: OrderItemRow;
         Insert: OrderItemInsert;
         Update: OrderItemUpdate;
+      };
+      payment_attempts: {
+        Row: PaymentAttemptRow;
+        Insert: PaymentAttemptInsert;
+        Update: PaymentAttemptUpdate;
       };
     };
   };

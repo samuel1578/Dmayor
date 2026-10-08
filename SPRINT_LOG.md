@@ -1603,6 +1603,26 @@ Customer → **Payments** → open an unpaid order → see the recorded metadata
 
 ---
 
+## Current state (after Vercel SPA Deep-Link Routing Fix)
+**Hosting/build configuration only** — no application behaviour changed.
+
+- `vercel.json` (new) rewrites `/(.*)` → `/index.html`; Vercel still serves real files first, so `/assets/*`, `/payment-logos/*` and other static files are unaffected.
+- `vite.config.ts` `base: '/'` → built `dist/index.html` references root-absolute `/assets/index-Mf_s9mP4.js`, `/assets/index-zdwozoyA.css`, `/assets/FAVICON-BdgQMbyy.png`.
+- Every React Router URL is now reachable directly (deep link, refresh, bookmark): `/admin/login`, `/admin`, `/shop`, `/product/:slug`, `/about`, `/blog`, `/contact`, `/cart`, `/checkout`, `/order-confirmation/:orderNumber`, `/account/*`, `/login`, `/signup` — and a future Paystack `/payment/callback`.
+- `public/_redirects` untouched (still inert on Vercel); `/og-image.png` still 404s (asset was deleted from `public/` in `PAYMENTS SETUP`) — both deferred.
+- **Supersedes the “Current state (after Phase H0.2)” snapshot only for hosting/routing.** Application functionality is unchanged from that snapshot.
+- **Not yet verified in production** — the live deployment still runs the previous build until Vercel redeploys.
+
+## Open follow-ups (current - after SPA Deep-Link Routing Fix)
+Everything in **“Open follow-ups (current - after Phase H0.2)”** remains open and is carried forward unchanged (Paystack Phase F, migration `010`, commerce-rule decisions, route-level code splitting, footer asset weight). On top of those:
+
+- **Verify the fix in production after Vercel redeploys:** hard-refresh each route (`/admin/login`, `/admin`, `/shop`, `/checkout`, `/order-confirmation/:orderNumber`, `/account/*`) and confirm assets load from `/assets/…`; then re-run the guest → login → `/checkout` → confirmation chain at the real URL.
+- **Decide whether to keep `public/_redirects`** — inert on Vercel; its `/collections → /shop 301` targets a route `App.tsx` does not define.
+- **Restore `/og-image.png`** (deleted from `public/` in `PAYMENTS SETUP`); `index.html` OG/Twitter tags still point at it — separate, non-blocking.
+- **Add `.env.example`** documenting the two public `VITE_*` keys only (still missing).
+
+---
+
 ## Sprint: Vercel SPA Deep-Link Routing Fix
 **Type:** hosting/build configuration only. **No application code, routes, auth, payments, orders, Supabase, migrations or UI were changed.**
 
@@ -1629,3 +1649,94 @@ Deep-link and refresh support for the whole React Router surface, and a hard pre
 - `npm run build` → exit 0, 2442 modules; `dist/index.html` emits `/assets/…` (root-absolute), no `./assets/…` references.
 - `git status`: only `vite.config.ts` modified + `vercel.json` untracked — no file under `src/` touched.
 - **Not yet live:** production URLs can only be re-tested after Vercel redeploys this commit.
+
+---
+
+## Sprint: Phase F1 — Paystack Payment Plumbing
+**Date:** 2026-10-08
+**Status:** Complete (local; not deployed)
+**Scope:** Server-side Paystack foundation only. No customer UX, no callback route, no webhook/reconciliation, no emails, no stock/fulfilment changes. Full detail in `SPRINT_F1_PAYSTACK_PLUMBING.md`.
+
+### Migration
+- `supabase/migrations/011_paystack_payment_foundation.sql` (new, forward-only; `001`–`010` untouched).
+- `public.payment_attempts` — one row per payment initialization (`order_id`, `user_id`, `provider`, `reference unique`, `status` ∈ initialized|pending|success|failed|abandoned, `amount`, `currency`, `channel`, `authorization_url`, `access_code`, `provider_response`, `verified_at`, timestamps).
+- RLS: customer SELECT of own rows only; **no** customer write policies. Column grants exclude `access_code`/`provider_response`.
+- `admin_list_payment_attempts(uuid, integer)` — admin-only read (fail-closed), prepared for a future support view.
+- `record_paystack_payment(...)` — the single atomic, idempotent, `service_role`-only verified-success write path (locks rows, re-checks reference/amount/currency, protects manual attribution).
+
+### Edge Functions
+- `supabase/functions/initialize-payment/` — input `{ orderId }` only; authenticates, checks ownership + eligibility, derives amount/currency/email server-side, generates `TPSPAY-<orderNumber>-<hex>` reference, records the attempt, calls Paystack Initialize, returns `{ reference, authorizationUrl, attemptId }`.
+- `supabase/functions/verify-payment/` — input `{ reference }` only; authenticates, finds the attempt, checks ownership, calls Paystack Verify server-to-server, compares reference/amount/currency, records success (→ `payment_status = paid`, `payment_source = 'paystack'`, real reference/channel/`paid_at`) or updates the attempt on failure. Fulfilment is never touched.
+- `supabase/functions/_shared/` — env, CORS allow-list, HTTP/error contract, Supabase user/service clients, Paystack client with defensive parsing, safe minor-unit conversion, reference/callback builders, shared types.
+- `supabase/functions/deno.json` added for the Deno toolchain.
+
+### Attribution / idempotency
+- Retries create a new attempt + new reference; verification is repeatable and returns `already_verified` without duplicate writes; `paid_at` is never reset.
+- Manual (`manual`) and Paystack (`paystack`) attribution stay distinct — Paystack verification returns `payment_conflict` rather than overwriting a manual payment. Existing `payment_*` fields are reused; no `paystack_*` duplicates were added.
+
+### F3 forward-compatibility
+- No webhook-event table in F1 (documented decision): `UNIQUE(reference)` is the idempotency anchor and the attempt row carries status/payload/`verified_at`, so F3 can add webhook event storage without reworking this schema.
+
+### Client / UI
+- **No customer activation.** Pay Now / Retry Payment remain `disabled`. No `/payment/callback` route was created.
+- Types added: `PaymentAttemptStatus`/`PaymentAttemptRow` in `src/lib/supabase.ts`; the client-safe contract + error mapping in `src/lib/payments/paystack.ts` (for F2).
+- `eslint.config.js` now ignores `supabase/functions` (Deno runtime, linted by the Deno toolchain instead).
+
+### Security
+- No `PAYSTACK` reference in `src/`; only `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` are read by the client. Amount and identity are server-derived; ownership is checked server-side; payment cannot be fabricated from callback params; `record_paystack_payment` is `service_role`-only; CORS is an allow-list, not `*`.
+
+### Files changed
+- `supabase/migrations/011_paystack_payment_foundation.sql` (new)
+- `supabase/functions/deno.json`, `supabase/functions/_shared/*` (new), `supabase/functions/initialize-payment/index.ts` (new), `supabase/functions/verify-payment/index.ts` (new)
+- `src/lib/supabase.ts` — attempt types
+- `src/lib/payments/paystack.ts` (new) — client-safe contract
+- `eslint.config.js` — ignore functions
+- `SPRINT_F1_PAYSTACK_PLUMBING.md` (new), `SPRINT_LOG.md` (this entry)
+
+### Verification
+- `npm run typecheck` → exit 0.
+- `npm run lint` → exit 0, 0 errors (same 4 pre-existing warnings in `src/contexts/*`).
+- `npm run build` → exit 0.
+- Edge Function TS: Deno CLI unavailable here, so `deno check` could not run; all files syntax-checked with esbuild (`--format=esm`) — all pass.
+- Migration not executed (manual, as with all migrations in this repo). No screenshots/Playwright/Puppeteer.
+
+### Manual steps still required
+1) Run `011_paystack_payment_foundation.sql` in Supabase. 2) Confirm secrets `PAYSTACK_SECRET_KEY` + `SITE_URL=https://theproxyshop.vercel.app`. 3) Deploy `initialize-payment` and `verify-payment`. 4) Test in Paystack Test Mode.
+
+---
+
+## Sprint: Phase F2 — Customer Paystack UX + Callback Flow
+**Date:** 2026-10-08
+**Status:** Complete (local; depends on deployed F1)
+**Scope:** Customer payment UX + `/payment/callback` verification only. No webhook/reconciliation (F3), no Admin/stock/fulfilment/checkout changes, no emails. Full detail in `SPRINT_F2_PAYSTACK_CUSTOMER_UX.md`.
+
+### Customer flow
+- **Pay Now** (unpaid) and **Retry Payment** (failed) are now active via the shared `src/components/payments/PaymentAction.tsx` on `/account/payments/:orderNumber`, `/account/orders/:orderNumber` and `/order-confirmation/:orderNumber`. Clicking calls `initialize-payment` with `{ orderId }` only, then full-page redirects (`window.location.assign`) to the Paystack hosted checkout. No popup, no Inline JS, no public key.
+- Retry reuses the identical code path, so it creates a NEW attempt/reference server-side.
+
+### Callback
+- New `/payment/callback` route (customer `AuthenticatedRoute`, outside Admin) → `src/pages/PaymentCallback.tsx`.
+- Reads only `reference`, falling back to `trxref`; ignores status/amount/email/metadata. Calls `verify-payment` server-to-server; success UI only appears after the server returns `status: paid`.
+- Seven normalized states: verifying, success, failed, pending, verification_error, invalid_reference, conflict (with `Check Again` / `Try Verification Again`, single manual retry, no polling).
+- `AuthenticatedRoute` now preserves `pathname + search + hash` in the login return path, so a signed-out callback return keeps its `?reference=…` and resumes after sign-in. No secrets are carried in the return path.
+
+### Client API / security
+- `src/lib/payments/paystack.ts`: `initializePaystackPayment` / `verifyPaystackPayment` (Edge Function invocation), typed results, no `any`; pure `paymentActionFor`, `parsePaymentError`, `createPaymentGuard` (single-flight) and request-body builders.
+- No Paystack secret under `src/`; only `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` are read. No client writes to `orders`/`payment_attempts`; ownership still enforced in the Edge Functions; manual attribution still protected (conflict state).
+
+### Tests / tooling
+- Added Vitest (`vitest.config.ts`, `npm test` / `npm run test:watch`) with focused pure-logic tests: `src/lib/payments/paystack.test.ts` and `src/lib/payments/callback.test.ts` — **24 tests, all passing**, covering all 15 required cases.
+
+### Files changed
+- New: `src/lib/payments/callback.ts`, `src/components/payments/PaymentAction.tsx`, `src/pages/PaymentCallback.tsx`, `src/lib/payments/paystack.test.ts`, `src/lib/payments/callback.test.ts`, `vitest.config.ts`, `SPRINT_F2_PAYSTACK_CUSTOMER_UX.md`.
+- Modified: `src/lib/payments/paystack.ts`, `src/components/account/OrderDetailView.tsx`, `src/pages/account/AccountPaymentDetail.tsx`, `src/pages/OrderConfirmation.tsx` (comment), `src/App.tsx`, `src/components/auth/AuthenticatedRoute.tsx`, `package.json`, `SPRINT_LOG.md`.
+
+### Verification
+- `npm run typecheck` → exit 0.
+- `npm run lint` → exit 0, 0 errors (same 4 pre-existing warnings in `src/contexts/*`).
+- `npm test` → 24 passed (2 files).
+- `npm run build` → exit 0.
+- No screenshots/Playwright/Puppeteer; no real Paystack transaction in unit tests. No migration added or executed.
+
+### Manual steps still required before testing
+1) Apply `011_paystack_payment_foundation.sql` and deploy `initialize-payment` + `verify-payment` (if not already). 2) Confirm secrets `PAYSTACK_SECRET_KEY` and `SITE_URL=https://theproxyshop.vercel.app`. 3) Test in Paystack Test Mode (success + failed + manual-conflict paths).

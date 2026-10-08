@@ -10,6 +10,7 @@ import { Contact } from './pages/Contact';
 import { Cart } from './pages/Cart';
 import { Checkout } from './pages/Checkout';
 import { OrderConfirmation } from './pages/OrderConfirmation';
+import { PaymentCallback } from './pages/PaymentCallback';
 import { CustomerLogin } from './pages/auth/CustomerLogin';
 import { CustomerSignup } from './pages/auth/CustomerSignup';
 import { AuthenticatedRoute } from './components/auth/AuthenticatedRoute';
@@ -62,6 +63,10 @@ function App() {
                 /checkout is redirected to /login and returned here afterwards. */}
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-confirmation/:orderNumber" element={<OrderConfirmation />} />
+            {/* Phase F2 — Paystack return URL. Authenticated because the
+                server verification runs as the caller. A signed-out return is
+                sent to /login and back here with the reference preserved. */}
+            <Route path="/payment/callback" element={<PaymentCallback />} />
 
             <Route path="/account" element={<AccountLayout />}>
               <Route index element={<AccountOverview />} />

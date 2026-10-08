@@ -15,7 +15,10 @@ export function AuthenticatedRoute() {
   }
 
   if (!session) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Preserve the full destination (path + query + hash) so a return URL such
+    // as /payment/callback?reference=… survives the sign-in round trip.
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/login" replace state={{ from }} />;
   }
 
   return <Outlet />;

@@ -10,7 +10,7 @@ Investigation-only report. No code, migrations, policies, routes or business rul
 - **Payments:** 100% manual. No Paystack dependency (0 hits in `package-lock.json`), no key, no secret store, no Edge Function, no callback route, no webhook, no reference/provider/transaction fields.
 - **Orders:** E1's atomic `create_order_from_cart` RPC remains the only order-creation path; it is server-authoritative for prices, stock and totals, and customers have read-only access enforced by RLS *and* revoked write grants.
 - **Stock:** decremented at **order creation** (before payment). **Cancelled orders do not restock** — deliberate, because the business rule is still unconfirmed.
-- **One production-critical finding:** the live deployment returns **HTTP 404 for every route except `/`** (`/shop`, `/checkout`, `/order-confirmation/TPS-2026-000001` all verified 404). `public/_redirects` is a Netlify-only file that Vercel ignores, there is no `vercel.json`, and `vite.config.ts` uses `base: './'`. No deep link, refresh, bookmark, shared link or — crucially — future Paystack callback URL can work until this is fixed.
+- **One production-critical finding:** the live deployment returns **HTTP 404 for every route except `/`** (`/shop`, `/checkout`, `/order-confirmation/TPS-2026-000001` all verified 404). `public/_redirects` is a Netlify-only file that Vercel ignores, there is no `vercel.json`, and `vite.config.ts` uses `base: './'`. No deep link, refresh, bookmark, shared link or — crucially — future Paystack callback URL can work until this is fixed. **Status (sprint `Vercel SPA Deep-Link Routing Fix`):** fixed in the repo — `vercel.json` rewrite added and `base: '/'` set; **re-verify against production after the next Vercel deploy.**
 - **Bundle:** one eager **840.51 kB** JS chunk (gzip 234.57 kB) containing every route, Admin included. No `React.lazy` anywhere. Route splitting is justified.
 - **Schema gaps for F/G:** payment reference/provider/channel/source, idempotency ledger, shipment fields, restock marker. **No migration is required for H1** as scoped.
 - **Repo is not self-contained:** `003` is missing and the Phase A migration that creates `profiles`/`is_admin()`/the signup trigger is not in the repository, while `005`/`009` depend on it.
@@ -43,7 +43,7 @@ Investigation-only report. No code, migrations, policies, routes or business rul
 
 1. **Transaction initialization** — no server-side entry point. Needs a Supabase Edge Function that accepts only an order identifier, re-reads `total_amount` from `orders` server-side, and calls Paystack with the secret key.
 2. **Secure secret storage** — no server secret surface exists; `PAYSTACK_SECRET_KEY` must live in Edge Function secrets, never in a `VITE_*` variable.
-3. **Callback handling** — no callback route, and the deep-link 404 makes any callback URL unloadable today (blocker, see H1).
+3. **Callback handling** — no callback route. The deep-link 404 that made any callback URL unloadable is **fixed in the repo** (SPA rewrite + `base: '/'`), so only the route itself remains (see H1).
 4. **Webhook handling** — no endpoint and no signature-verification code.
 5. **Transaction verification** — no server-to-server verify call; without it there is no trustworthy proof of payment.
 6. **Idempotency** — no unique reference column and no processed-event ledger; a duplicated webhook would currently have nothing to check against.
@@ -183,7 +183,7 @@ Non-definer helpers reviewed: `set_updated_at()` (plain trigger, no privilege us
 
 **Issues by severity:**
 - **Critical:** none found in the schema, policy or grant layer.
-- **High:** (1) production deep links return 404 for every route except `/` — an availability/correctness issue rather than an RLS one, but it makes the app effectively single-entry and blocks Paystack callbacks; (2) **no server-side secret store exists yet**, recorded now so Phase F does not put a Paystack secret into a `VITE_*` variable.
+- **High:** (1) production deep links return 404 for every route except `/` — an availability/correctness issue rather than an RLS one, but it makes the app effectively single-entry and blocks Paystack callbacks (**fixed in the repo** by `vercel.json` + `base: '/'`; confirm on production after deploy); (2) **no server-side secret store exists yet**, recorded now so Phase F does not put a Paystack secret into a `VITE_*` variable.
 - **Medium:** (1) `admin_set_order_payment_status` lets any admin set `paid` with no reference and no attribution — F's `payment_source` field should close this; (2) no admin action log, so an incorrect manual status change leaves no trace; (3) `orders.user_id … on delete cascade` removes order history when a customer is deleted, which is an accounting/reconciliation risk.
 - **Low:** `profiles_guard_update` blocks role escalation by inspecting `current_user`; if a future SECURITY DEFINER function ever updates `profiles.role`, `current_user` becomes the owner and the guard passes silently (no such function exists today). Also Low: `AuthenticatedRoute` preserves only `location.pathname`, dropping query/hash from the intended destination.
 
@@ -195,7 +195,7 @@ Non-definer helpers reviewed: `set_updated_at()` (plain trigger, no privilege us
 
 **Vercel — exact env vars that must exist:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, scoped to Production and Preview. No service-role key and no Paystack secret may ever be added to Vercel's client environment. Build command `npm run build`, output `dist`.
 
-**Hosting config gap:** there is **no `vercel.json`**, and `public/_redirects` (a Netlify convention, ignored by Vercel) is the only rewrite present. Combined with `base: './'` in `vite.config.ts` — which emits `./assets/index-*.js` — the SPA fallback is both missing and, once added, would still resolve assets against the wrong directory on multi-segment paths. Both must change together.
+**Hosting config gap (at investigation time):** there was **no `vercel.json`**, and `public/_redirects` (a Netlify convention, ignored by Vercel) is the only rewrite present. Combined with `base: './'` in `vite.config.ts` — which emits `./assets/index-*.js` — the SPA fallback is both missing and, once added, would still resolve assets against the wrong directory on multi-segment paths. Both must change together. **Status (sprint `Vercel SPA Deep-Link Routing Fix`):** both changed — `vercel.json` now rewrites `/(.*)` to `/index.html` (filesystem files still win, so `/assets/*` is preserved) and `base: '/'` emits root-absolute `/assets/...`; `public/_redirects` intentionally left in place, still inert.
 
 **Supabase Auth URLs** (permanent public domain is `https://theproxyshop.vercel.app`):
 - Site URL: `https://theproxyshop.vercel.app`
@@ -240,7 +240,7 @@ Non-definer helpers reviewed: `set_updated_at()` (plain trigger, no privilege us
 - **Return-to-intended-route works.** `AuthenticatedRoute` navigates to `/login` with `state={{ from: location.pathname }}`; `CustomerLogin` reads that state, defaults to `/account`, and after a successful sign-in navigates there with `replace`; the signup link forwards the same state; `CustomerSignup` also navigates to the intended destination once a session exists. Login and signup are both correct for a guest who clicked "Proceed to Checkout".
 - **`/checkout` survives the auth redirect:** yes (path only). If a query string is ever added to `/checkout`, it would be dropped — relevant when the Paystack return URL carries parameters, so F should plan for it.
 - **Absolute/hardcoded development URLs:** none in `src` — no `localhost`, no `127.0.0.1`, no `window.location.origin`, no third-party domain. `index.html` canonical and OG tags correctly use `https://theproxyshop.vercel.app/`.
-- **Production routes that break on refresh:** **all of them except `/`** — verified 404 for `/shop`, `/checkout` and `/order-confirmation/TPS-2026-000001`. This is the highest-priority fix in the whole report.
+- **Production routes that break on refresh:** **all of them except `/`** — verified 404 for `/shop`, `/checkout` and `/order-confirmation/TPS-2026-000001`. This is the highest-priority fix in the whole report. **Status:** fixed in the repo (sprint `Vercel SPA Deep-Link Routing Fix`); hard-refresh re-verification still pending a production deploy.
 - **Does `public/_redirects` cover SPA routing?** No — it is Netlify-only syntax that Vercel ignores, and its `/collections → /shop 301` rule points at a route `App.tsx` does not define.
 - **Paystack callback path to create in Phase F:** a stable, single-segment `/payment/callback` (loadable only once the SPA fallback exists). It must tolerate being visited twice, by a different session, or with missing/forged parameters, and must verify server-side.
 - **Supabase Auth redirect URLs to configure:** Site URL `https://theproxyshop.vercel.app`; allow-list `https://theproxyshop.vercel.app/**` plus `http://localhost:5173/**`; and no `emailRedirectTo` is passed in code today.
@@ -266,7 +266,7 @@ Searched `src` for shipping guarantees, delivery times, free returns, tax claims
 ### Recommended H1 / H2 / H3 split
 
 **H1 — Deployability (blocking, no new features).**
-Fix the every-route 404: add `vercel.json` with a SPA rewrite and change `vite.config.ts` to `base: '/'`; then hard-refresh-verify every route, and re-verify the guest → login → `/checkout` → confirmation chain at the real URL. Replace the Contact form's fake success with something honest. Remove the false payment badges (and "Sale") from the footer. Register the Supabase Auth Site URL and redirect allow-list; confirm the two Vercel env vars. Smallest, highest-value chunk — and it unblocks Phase F.
+Fix the every-route 404: add `vercel.json` with a SPA rewrite and change `vite.config.ts` to `base: '/'` — **done (sprint `Vercel SPA Deep-Link Routing Fix`); the remaining H1 step is the hard-refresh-verify every route after deploy**, and re-verify the guest → login → `/checkout` → confirmation chain at the real URL. Replace the Contact form's fake success with something honest. Remove the false payment badges (and "Sale") from the footer. Register the Supabase Auth Site URL and redirect allow-list; confirm the two Vercel env vars. Smallest, highest-value chunk — and it unblocks Phase F.
 
 **H2 — Performance and polish.**
 Route-level `React.lazy` with a `Suspense` fallback, Admin first, then Account/Checkout/Orders. Compress or replace `logo.png` (730.92 kB), `founder.png` (654.77 kB), `FAVICON.png` (216.55 kB) and `og-image.png` (901.15 kB) with WebP/SVG and lazy-load the About asset. Optionally stop jsPDF's html2canvas/purify companions from being fetched for a text-only document. Re-measure with the same build command.
@@ -299,11 +299,11 @@ Genuine gaps discovered, in priority order:
 - [ ] Never `SUPABASE_SERVICE_ROLE_KEY`, `PAYSTACK_SECRET_KEY` or any other secret as a `VITE_*` variable
 
 **Vercel → hosting / build:**
-- [ ] Add `vercel.json` with a SPA rewrite to `/index.html` (excluding `/assets/*`)
-- [ ] Change `vite.config.ts` `base: './'` → `base: '/'`
-- [ ] Confirm build command `npm run build` and output directory `dist`
+- [x] Add `vercel.json` with a SPA rewrite to `/index.html` (excluding `/assets/*`) — done (sprint `Vercel SPA Deep-Link Routing Fix`); the rewrite is `/(.*)` → `/index.html`, and Vercel serves filesystem files first, so `/assets/*` needs no exclusion
+- [x] Change `vite.config.ts` `base: './'` → `base: '/'` — done (same sprint); `dist/index.html` now emits `/assets/...`
+- [ ] Confirm build command `npm run build` and output directory `dist` (repo side confirmed in `package.json`/`vite.config.ts`; confirm the Vercel project settings match)
 - [ ] Decide whether to keep `public/_redirects` (inert on Vercel); `/collections → /shop` has no matching route
-- [ ] Hard-refresh test every route after deploying: `/`, `/shop`, `/product/:slug`, `/about`, `/blog`, `/contact`, `/cart`, `/checkout`, `/order-confirmation/:orderNumber`, `/account/*`, `/admin/*`
+- [ ] Hard-refresh test every route after deploying: `/`, `/shop`, `/product/:slug`, `/about`, `/blog`, `/contact`, `/cart`, `/checkout`, `/order-confirmation/:orderNumber`, `/account/*`, `/admin/*` — **blocked until Vercel redeploys the fix**
 
 **Supabase → Auth → URL configuration:**
 - [ ] Site URL: `https://theproxyshop.vercel.app`
@@ -361,14 +361,14 @@ Genuine gaps discovered, in priority order:
 ## Priority Matrix
 
 **Must before real payments:**
-- Fix every-route 404 (SPA rewrite + `base: '/'`) — a Paystack callback URL cannot even be loaded today
+- ~~Fix every-route 404 (SPA rewrite + `base: '/'`)~~ **done in repo** (sprint `Vercel SPA Deep-Link Routing Fix`) — re-verify in production after deploy; a Paystack callback URL could not be loaded before this
 - Create a real server-side secret store (Supabase Edge Function secrets) and keep secrets out of `VITE_*`
 - Add `payment_reference`, `payment_source`/`payment_provider`/`payment_channel` and an idempotency ledger
 - Verify amounts server-side against `orders.total_amount` before any payment is accepted
 - Owner decisions 1–5 (shipping, tax, stock timing, payment channel, expiry) — these determine what is charged and when inventory moves
 
 **Must before launch:**
-- Fix every-route 404 and verify every route by hard refresh
+- Fix every-route 404 and verify every route by hard refresh — **fix committed, production hard-refresh verification still pending deploy**
 - Stop the Contact form silently discarding messages
 - Remove the false payment-method badges (and "Sale") from the footer
 - Register Supabase Auth Site URL and redirect allow-list

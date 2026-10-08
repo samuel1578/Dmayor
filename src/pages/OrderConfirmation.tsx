@@ -162,8 +162,9 @@ export function OrderConfirmation() {
           <OrderDetailView order={order} />
         </div>
 
-        {/* Phase H0.2 — unpaid orders point to the customer payment center.
-            No active Pay Now here until Phase F. */}
+        {/* Phase F2 — Pay Now is available in the shared OrderDetailView above
+            (unpaid/failed and not cancelled). This panel points to the customer
+            payment center for the full payment record. */}
         {order.paymentStatus === 'unpaid' && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
             <div>

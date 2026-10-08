@@ -4,6 +4,7 @@ import { ArrowLeft, Info } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { GlitchBrand } from '../../components/GlitchBrand';
 import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceButton';
+import { PaymentAction } from '../../components/payments/PaymentAction';
 import { formatGhs } from '../../lib/catalogue/products';
 import { ORDER_STATUS_LABELS, formatOrderDate } from '../../lib/account/orders';
 import {
@@ -27,9 +28,10 @@ import {
  * not exist: the not-found state below never reveals whether someone else's
  * payment exists.
  *
- * There is no online payment provider yet. `Pay Now` / `Retry Payment` are
- * deliberately disabled and informational until Phase F — they never pretend
- * to process a payment.
+ * Phase F2 activates `Pay Now` / `Retry Payment` through the shared
+ * `PaymentAction`, which hands off to Paystack hosted checkout and returns via
+ * `/payment/callback`. The order is only marked paid by the server after a
+ * server-to-server verification; nothing here trusts the client.
  *
  * The full order lives on `/account/orders/:orderNumber`; this page shows only
  * a restrained summary and links across rather than duplicating it.
@@ -236,45 +238,40 @@ export function AccountPaymentDetail() {
 
         {/* ---------------------------- State CTA --------------------------- */}
         <div className="space-y-6">
-          {/* Unpaid — the Pay Now placeholder Phase F will replace. */}
-          {payment.paymentStatus === 'unpaid' && (
+          {/* Unpaid — Pay Now via the shared payment action. Suppressed for a
+              cancelled order (no online payment on a cancelled order). */}
+          {payment.paymentStatus === 'unpaid' && payment.orderStatus !== 'cancelled' && (
             <section className="rounded-lg border border-ghana-black/10 p-5 sm:p-6 dark:border-white/10">
               <h2 className="font-display text-xl text-ghana-black dark:text-white">
                 Payment outstanding
               </h2>
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                aria-describedby="pay-now-note"
-                className="mt-4 w-full cursor-not-allowed rounded-lg bg-ghana-green px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white opacity-50"
-              >
-                Pay Now
-              </button>
-              <p id="pay-now-note" className="mt-3 text-xs text-ghana-black/60 dark:text-white/60">
-                Online payment is not available yet. Nothing is charged when you place an order.
+              <p className="mt-2 text-xs text-ghana-black/60 dark:text-white/60">
+                No payment has been recorded for this order yet.
               </p>
+              <PaymentAction
+                orderId={payment.id}
+                paymentStatus={payment.paymentStatus}
+                orderStatus={payment.orderStatus}
+                className="mt-4"
+              />
             </section>
           )}
 
-          {/* Failed — Retry is informational until Phase F. */}
-          {payment.paymentStatus === 'failed' && (
+          {/* Failed — Retry Payment starts a NEW attempt/server reference. */}
+          {payment.paymentStatus === 'failed' && payment.orderStatus !== 'cancelled' && (
             <section className="rounded-lg border border-ghana-red/40 p-5 sm:p-6">
               <h2 className="font-display text-xl text-ghana-black dark:text-white">
                 Payment failed
               </h2>
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                aria-describedby="retry-note"
-                className="mt-4 w-full cursor-not-allowed rounded-lg border border-ghana-red/50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-ghana-red opacity-60"
-              >
-                Retry Payment
-              </button>
-              <p id="retry-note" className="mt-3 text-xs text-ghana-black/60 dark:text-white/60">
-                Online payment is not available yet, so retrying is not possible right now.
+              <p className="mt-2 text-xs text-ghana-black/60 dark:text-white/60">
+                The last payment attempt did not go through. You can try again.
               </p>
+              <PaymentAction
+                orderId={payment.id}
+                paymentStatus={payment.paymentStatus}
+                orderStatus={payment.orderStatus}
+                className="mt-4"
+              />
             </section>
           )}
 

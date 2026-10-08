@@ -3,6 +3,7 @@ import { OrderStatusTimeline } from './OrderStatusTimeline';
 import { PAYMENT_STATUS_LABELS, formatOrderDate, type OrderDetail } from '../../lib/account/orders';
 import { formatGhs } from '../../lib/catalogue/products';
 import { ProductImagePlaceholder } from '../ProductImagePlaceholder';
+import { PaymentAction } from '../payments/PaymentAction';
 
 /**
  * Shared order body (Phase E2) — used by the E1 order confirmation page and by
@@ -96,23 +97,15 @@ export function OrderDetailView({ order }: { order: OrderDetail }) {
             </dl>
           )}
 
-          {/* Pay Now placeholder — Phase F replaces this copy with real Paystack
-              initialization and verification. It never charges anything today. */}
-          {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') && (
-            <div className="mt-4 border-t border-ghana-black/10 pt-4 dark:border-white/10">
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                className="w-full cursor-not-allowed rounded-lg bg-ghana-green px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white opacity-50 sm:w-auto"
-              >
-                Pay Now
-              </button>
-              <p className="mt-2 text-xs text-ghana-black/60 dark:text-white/60">
-                Online payment is not available yet. Nothing is charged when you place an order.
-              </p>
-            </div>
-          )}
+          {/* Phase F2 — real Pay Now / Retry Payment. Eligibility (unpaid /
+              failed, and not cancelled) is decided by the shared action, which
+              renders nothing for paid, refunded or cancelled orders. */}
+          <PaymentAction
+            orderId={order.id}
+            paymentStatus={order.paymentStatus}
+            orderStatus={order.status}
+            className="mt-4 border-t border-ghana-black/10 pt-4 dark:border-white/10"
+          />
         </div>
       </div>
 
