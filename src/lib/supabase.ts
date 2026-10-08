@@ -324,6 +324,24 @@ export interface OrderRow {
   payment_updated_at: string | null;
   /** Set when the order is CURRENTLY marked paid (E3); null otherwise. */
   paid_at: string | null;
+  /** Phase G2 cancellation lifecycle — null until the order is cancelled. */
+  cancelled_at: string | null;
+  /** Constrained reason code (see src/lib/cancellation.ts); nullable. */
+  cancellation_reason: string | null;
+  /** Internal Admin note — never selected by the customer order query. */
+  cancellation_note: string | null;
+  /** auth.uid() of the Admin who cancelled through admin_cancel_order(). */
+  cancelled_by: string | null;
+  /** Exactly-once restock marker: non-null only after stock was returned. */
+  restocked_at: string | null;
+  /** Phase G1 shipment fields — null until an Admin saves shipment details. */
+  carrier: string | null;
+  tracking_number: string | null;
+  /** HTTP(S) only; any other scheme is rejected by the database constraint. */
+  tracking_url: string | null;
+  delivery_note: string | null;
+  /** When the shipment block was last saved — current state, not an audit log. */
+  tracking_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }

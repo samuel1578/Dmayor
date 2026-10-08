@@ -1,20 +1,32 @@
 import { MapPin } from 'lucide-react';
 import { OrderStatusTimeline } from './OrderStatusTimeline';
-import { PAYMENT_STATUS_LABELS, formatOrderDate, type OrderDetail } from '../../lib/account/orders';
+import { OrderShipment } from './OrderShipment';
+import { customerCancellationReasonText } from '../../lib/cancellation';
+import {
+  PAYMENT_SOURCE_LABELS,
+  formatOrderDate,
+  paymentSummaryLabel,
+  type OrderDetail,
+} from '../../lib/account/orders';
+import { showTrackingFor } from '../../lib/shipment';
 import { formatGhs } from '../../lib/catalogue/products';
 import { ProductImagePlaceholder } from '../ProductImagePlaceholder';
 import { PaymentAction } from '../payments/PaymentAction';
 
 /**
- * Shared order body (Phase E2) — used by the E1 order confirmation page and by
- * the account order detail page, so an order is rendered from exactly one place.
+ * Shared order body (Phase E2, refined in Phase G3) — used by the E1 order
+ * confirmation page and by the account order detail page, so an order is
+ * rendered from exactly one place.
  *
  * Every item value comes from the order's SNAPSHOT columns: an archived
  * product, a deleted variant, a renamed product or a new price can never change
  * what this view shows.
  *
  * Fulfilment progress and payment status are displayed as independent domains —
- * one is never inferred from the other.
+ * one is never inferred from the other:
+ *
+ *   Payment:    Paid · Paystack     (recorded source, never a fulfilment claim)
+ *   Fulfilment: Preparing your order (order progress, never a payment claim)
  */
 
 /** Factual explanation of the recorded payment status (no automation implied). */
@@ -35,18 +47,50 @@ export function OrderDetailView({ order }: { order: OrderDetail }) {
     order.country,
   ].filter((part): part is string => Boolean(part));
 
+  const cancellationText = customerCancellationReasonText(order.cancellationReason);
+
   return (
     <div className="space-y-8">
       {/* ------------------------- Progress + payment ------------------------- */}
       <div className="space-y-4">
-        <OrderStatusTimeline status={order.status} />
+        <OrderStatusTimeline status={order.status} deliveredAt={order.deliveredAt} />
+
+        {/* Phase G2 — cancellation date + customer-safe reason. The internal
+            note, the admin actor and the restock marker are never exposed. */}
+        {order.status === 'cancelled' && (
+          <div className="rounded-lg border border-ghana-red/40 p-5 sm:p-6">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-red">
+              Cancellation
+            </p>
+            <p className="mt-2 text-sm text-ghana-black/70 dark:text-white/70">
+              {order.cancelledAt
+                ? `Cancelled on ${formatOrderDate(order.cancelledAt)}.`
+                : 'This order was cancelled.'}
+              {cancellationText && <span> {cancellationText}</span>}
+            </p>
+          </div>
+        )}
+
+        {/* Phase G1 + G3 — shipment details sit right under the timeline (the
+            Shipped stage) and are shown from the moment the order has reached
+            Shipped. Nothing renders until an Admin saves them. */}
+        {showTrackingFor(order.status, order.shippedAt) && (
+          <OrderShipment
+            shipment={{
+              carrier: order.carrier,
+              trackingNumber: order.trackingNumber,
+              trackingUrl: order.trackingUrl,
+              deliveryNote: order.deliveryNote,
+            }}
+          />
+        )}
 
         <div className="rounded-lg border border-ghana-black/10 p-5 sm:p-6 dark:border-white/10">
           <p className="text-[10px] uppercase tracking-[0.22em] text-ghana-black/50 dark:text-white/50">
             Payment status
           </p>
           <p className="mt-2 font-display text-2xl text-ghana-black dark:text-white">
-            {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+            {paymentSummaryLabel(order.paymentStatus, order.paymentSource)}
           </p>
           <p className="mt-2 text-xs text-ghana-black/60 dark:text-white/60">
             {PAYMENT_STATUS_NOTES[order.paymentStatus]} Payment is recorded separately from order
@@ -57,9 +101,18 @@ export function OrderDetailView({ order }: { order: OrderDetail }) {
           {(order.paymentReference ||
             order.paymentProvider ||
             order.paymentChannel ||
+            order.paymentSource ||
             order.paymentUpdatedAt ||
             order.paidAt) && (
             <dl className="mt-4 space-y-2 border-t border-ghana-black/10 pt-4 text-xs dark:border-white/10">
+              {order.paymentSource && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ghana-black/50 dark:text-white/50">Source</dt>
+                  <dd className="text-right text-ghana-black/80 dark:text-white/80">
+                    {PAYMENT_SOURCE_LABELS[order.paymentSource]}
+                  </dd>
+                </div>
+              )}
               {order.paymentReference && (
                 <div className="flex justify-between gap-4">
                   <dt className="text-ghana-black/50 dark:text-white/50">Reference</dt>

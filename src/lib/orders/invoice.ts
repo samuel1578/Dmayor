@@ -1,7 +1,7 @@
 import type { jsPDF } from 'jspdf';
 import {
-  ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
+  customerStatusLabel,
   getMyOrder,
   type OrderDetail,
 } from '../account/orders';
@@ -203,7 +203,7 @@ function drawOrderAndDelivery(doc: jsPDF, order: OrderDetail, y: number): number
   const rows: Array<[string, string]> = [
     ['Order number', order.orderNumber],
     ['Order date', pdfDateTime(order.createdAt)],
-    ['Order status', ORDER_STATUS_LABELS[order.status]],
+    ['Order status', customerStatusLabel(order.status)],
     ['Payment status', PAYMENT_STATUS_LABELS[order.paymentStatus]],
   ];
 

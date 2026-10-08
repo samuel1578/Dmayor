@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase';
+import { PAYMENT_SOURCE_LABELS, PAYMENT_STATUS_OPTIONS } from '../orders/status';
 
 /**
  * Customer payment center data layer (Phase H0.2).
@@ -25,23 +26,16 @@ import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase
  */
 
 /* -------------------------------------------------------------------------- */
-/* Status domains                                                             */
+/* Status domains — re-exported from the single central vocabulary (Phase G3) */
 /* -------------------------------------------------------------------------- */
 
-export const PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
-  unpaid: 'Unpaid',
-  paid: 'Paid',
-  failed: 'Failed',
-  refunded: 'Refunded',
-};
-
-/** Selectable payment states (all four are manual records, not transitions). */
-export const PAYMENT_STATUS_OPTIONS: readonly OrderPaymentStatus[] = [
-  'unpaid',
-  'paid',
-  'failed',
-  'refunded',
-];
+export {
+  PAYMENT_SOURCE_LABELS,
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_OPTIONS,
+  paymentStatusLabel,
+  paymentSummaryLabel,
+} from '../orders/status';
 
 export type PaymentFilter = 'all' | OrderPaymentStatus;
 
@@ -79,11 +73,6 @@ export function countMyPaymentsByStatus(
 /* -------------------------------------------------------------------------- */
 /* Display helpers — honest labels, never fabricated values                   */
 /* -------------------------------------------------------------------------- */
-
-export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
-  manual: 'Manual',
-  paystack: 'Paystack',
-};
 
 /** `Manual` / `Paystack`, or an honest neutral label when nothing is recorded. */
 export function paymentSourceLabel(source: PaymentSource | null): string {

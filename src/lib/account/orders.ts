@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase';
+import { ACTIVE_ORDER_STATUSES, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '../orders/status';
 
 /**
  * Customer order history data layer (Phase E2).
@@ -25,43 +26,27 @@ import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase
  */
 
 /* -------------------------------------------------------------------------- */
-/* Status domains                                                             */
+/* Status domains — re-exported from the single central vocabulary (Phase G3) */
 /* -------------------------------------------------------------------------- */
 
-/** Fulfilment status — never merged with payment status. */
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
-  processing: 'Processing',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-};
-
-/** Payment status — shown independently of fulfilment. */
-export const PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
-  unpaid: 'Unpaid',
-  paid: 'Paid',
-  failed: 'Failed',
-  refunded: 'Refunded',
-};
-
-/** Fulfilment progress order used by the status timeline. */
-export const FULFILMENT_STEPS: readonly OrderStatus[] = [
-  'pending',
-  'confirmed',
-  'processing',
-  'shipped',
-  'delivered',
-];
-
-/** Statuses considered "still on its way" for the Active filter. */
-export const ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = [
-  'pending',
-  'confirmed',
-  'processing',
-  'shipped',
-];
+/**
+ * Canonical + customer wording, payment wording and the fulfilment step order
+ * all live in `src/lib/orders/status.ts`. They are re-exported here so every
+ * existing consumer keeps one import path while the wording stays centralised.
+ */
+export {
+  ACTIVE_ORDER_STATUSES,
+  CUSTOMER_STATUS_LABELS,
+  FULFILMENT_STEPS,
+  ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_OPTIONS,
+  PAYMENT_SOURCE_LABELS,
+  customerStatusLabel,
+  paymentStatusLabel,
+  paymentSummaryLabel,
+} from '../orders/status';
 
 export type OrderFilter = 'all' | 'active' | 'delivered' | 'cancelled';
 
@@ -113,6 +98,8 @@ export interface OrderSummary {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
+  /** Recorded payment source — combined with status for `Paid · Paystack`. */
+  paymentSource: PaymentSource | null;
   totalAmount: number;
   currency: string;
   createdAt: string;
@@ -159,6 +146,9 @@ export interface OrderDetail {
   customerNote: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Phase G3 — operational timestamps shown on the customer timeline. */
+  shippedAt: string | null;
+  deliveredAt: string | null;
   /** Phase H0.1 payment metadata — null until a payment is recorded. */
   paymentReference: string | null;
   paymentProvider: string | null;
@@ -167,6 +157,16 @@ export interface OrderDetail {
   paymentUpdatedAt: string | null;
   /** Set when the order is CURRENTLY marked paid; null otherwise. */
   paidAt: string | null;
+  /** Phase G1 shipment fields — null until an Admin saves them. */
+  carrier: string | null;
+  trackingNumber: string | null;
+  /** HTTP(S) only; never rendered as a link when invalid. */
+  trackingUrl: string | null;
+  deliveryNote: string | null;
+  /** Phase G2 cancellation — customer-safe subset only (no note/actor). */
+  cancelledAt: string | null;
+  /** Constrained reason code; render with customerCancellationReasonText(). */
+  cancellationReason: string | null;
   items: OrderItemDetail[];
 }
 
@@ -225,6 +225,7 @@ function mapOrderSummary(value: unknown): OrderSummary | null {
     orderNumber,
     status: asOrderStatus(row.status),
     paymentStatus: asPaymentStatus(row.payment_status),
+    paymentSource: asPaymentSource(row.payment_source),
     totalAmount: asNumber(row.total_amount),
     currency: asText(row.currency) ?? 'GHS',
     createdAt: String(row.created_at ?? ''),
@@ -284,12 +285,20 @@ function mapOrderDetail(value: unknown): OrderDetail | null {
     customerNote: asText(row.customer_note),
     createdAt: String(row.created_at ?? ''),
     updatedAt: String(row.updated_at ?? ''),
+    shippedAt: asText(row.shipped_at),
+    deliveredAt: asText(row.delivered_at),
     paymentReference: asText(row.payment_reference),
     paymentProvider: asText(row.payment_provider),
     paymentChannel: asText(row.payment_channel),
     paymentSource: asPaymentSource(row.payment_source),
     paymentUpdatedAt: asText(row.payment_updated_at),
     paidAt: asText(row.paid_at),
+    carrier: asText(row.carrier),
+    trackingNumber: asText(row.tracking_number),
+    trackingUrl: asText(row.tracking_url),
+    deliveryNote: asText(row.delivery_note),
+    cancelledAt: asText(row.cancelled_at),
+    cancellationReason: asText(row.cancellation_reason),
     items: rawItems.map(mapOrderItem).filter((item): item is OrderItemDetail => item !== null),
   };
 }
@@ -300,15 +309,18 @@ function mapOrderDetail(value: unknown): OrderDetail | null {
 
 /** History payload: quantities only, so the list stays a single small query. */
 const SUMMARY_SELECT =
-  'id, order_number, status, payment_status, total_amount, currency, created_at, ' +
-  'order_items(quantity)';
+  'id, order_number, status, payment_status, payment_source, total_amount, currency, ' +
+  'created_at, order_items(quantity)';
 
 const DETAIL_SELECT =
   'id, order_number, status, payment_status, subtotal, shipping_amount, tax_amount, ' +
   'total_amount, currency, recipient_name, phone, address_line1, address_line2, city, ' +
   'region, country, postal_code, customer_note, created_at, updated_at, ' +
+  'shipped_at, delivered_at, ' +
   'payment_reference, payment_provider, payment_channel, payment_source, ' +
   'payment_updated_at, paid_at, ' +
+  'carrier, tracking_number, tracking_url, delivery_note, ' +
+  'cancelled_at, cancellation_reason, ' +
   'order_items(id, product_id, variant_id, product_name, product_slug, variant_sku, size, ' +
   'colour, unit_price, quantity, line_total, image_url)';
 

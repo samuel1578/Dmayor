@@ -1,5 +1,8 @@
 import { supabase } from '../supabase';
-import type { OrderPaymentStatus, OrderStatus } from '../supabase';
+import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase';
+import { validateCancellationInput } from '../cancellation';
+import { normalizeShipmentInput, type ShipmentDraft, type ShipmentFields } from '../shipment';
+import { PAYMENT_STATUS_OPTIONS, TERMINAL_ORDER_STATUSES } from '../orders/status';
 import { describeMutationError } from './errors';
 
 /**
@@ -22,9 +25,18 @@ import { describeMutationError } from './errors';
 /* -------------------------------------------------------------------------- */
 
 export {
+  ORDER_STATUS_ACTION_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
-} from '../account/orders';
+  PAYMENT_STATUS_OPTIONS,
+  PAYMENT_SOURCE_LABELS,
+  TERMINAL_ORDER_STATUSES,
+  orderStatusActionLabel,
+  paymentSummaryLabel,
+} from '../orders/status';
+
+/** Cancellation vocabulary shared with the customer view (Phase G2). */
+export { CANCELLATION_REASONS, CANCELLATION_REASON_LABELS } from '../cancellation';
 
 /**
  * Allowed fulfilment transitions — the database enforces exactly this map; the
@@ -39,9 +51,7 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[
   cancelled: [],
 };
 
-/** `delivered` and `cancelled` are final — no outgoing transitions exist. */
-export const TERMINAL_ORDER_STATUSES: readonly OrderStatus[] = ['delivered', 'cancelled'];
-
+/** `delivered` and `cancelled` are final — see TERMINAL_ORDER_STATUSES. */
 export function nextOrderStatuses(status: OrderStatus): readonly OrderStatus[] {
   return ORDER_STATUS_TRANSITIONS[status] ?? [];
 }
@@ -49,14 +59,6 @@ export function nextOrderStatuses(status: OrderStatus): readonly OrderStatus[] {
 export function isTerminalOrderStatus(status: OrderStatus): boolean {
   return TERMINAL_ORDER_STATUSES.includes(status);
 }
-
-/** Selectable payment states (all four are manual records, not transitions). */
-export const PAYMENT_STATUS_OPTIONS: readonly OrderPaymentStatus[] = [
-  'unpaid',
-  'paid',
-  'failed',
-  'refunded',
-];
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */
@@ -81,6 +83,9 @@ export interface AdminOrderListItem {
   phone: string;
   createdAt: string;
   updatedAt: string;
+  /** Phase G1 — compact tracking indicator for the queue (null until saved). */
+  carrier: string | null;
+  trackingNumber: string | null;
 }
 
 export interface AdminOrderItem {
@@ -110,6 +115,8 @@ export interface AdminOrder {
   userId: string;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
+  /** Recorded payment source (`paystack` / `manual`) — payment domain only. */
+  paymentSource: PaymentSource | null;
   subtotal: number;
   shippingAmount: number;
   taxAmount: number;
@@ -132,6 +139,21 @@ export interface AdminOrder {
   shippedAt: string | null;
   deliveredAt: string | null;
   cancelledAt: string | null;
+  /** Phase G1 shipment fields — saved independently of status and payment. */
+  carrier: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  deliveryNote: string | null;
+  /** When the shipment block was last saved; null until the first save. */
+  trackingUpdatedAt: string | null;
+  /** Phase G2: constrained reason code from admin_cancel_order(); may be null. */
+  cancellationReason: string | null;
+  /** Internal Admin note — never sent to the customer. */
+  cancellationNote: string | null;
+  /** Admin who cancelled (auth.uid()); null on the legacy path. */
+  cancelledBy: string | null;
+  /** Exactly-once restock marker: non-null only after stock was returned. */
+  restockedAt: string | null;
   customer: AdminOrderCustomer;
   items: AdminOrderItem[];
 }
@@ -195,6 +217,11 @@ function asPaymentStatus(value: unknown): OrderPaymentStatus {
     : 'unpaid';
 }
 
+function asPaymentSource(value: unknown): PaymentSource | null {
+  const text = String(value ?? '');
+  return text === 'manual' || text === 'paystack' ? (text as PaymentSource) : null;
+}
+
 function mapListItem(value: unknown): AdminOrderListItem | null {
   const row = asRow(value);
   if (!row) return null;
@@ -222,6 +249,8 @@ function mapListItem(value: unknown): AdminOrderListItem | null {
     phone: asText(row.phone) ?? '',
     createdAt: String(row.created_at ?? ''),
     updatedAt: String(row.updated_at ?? ''),
+    carrier: asText(row.carrier),
+    trackingNumber: asText(row.tracking_number),
   };
 }
 
@@ -269,6 +298,7 @@ function mapAdminOrder(value: unknown): AdminOrder | null {
     userId: String(order.user_id ?? ''),
     status: asOrderStatus(order.status),
     paymentStatus: asPaymentStatus(order.payment_status),
+    paymentSource: asPaymentSource(order.payment_source),
     subtotal: asNumber(order.subtotal),
     shippingAmount: asNumber(order.shipping_amount),
     taxAmount: asNumber(order.tax_amount),
@@ -290,6 +320,15 @@ function mapAdminOrder(value: unknown): AdminOrder | null {
     shippedAt: asTimestamp(order.shipped_at),
     deliveredAt: asTimestamp(order.delivered_at),
     cancelledAt: asTimestamp(order.cancelled_at),
+    carrier: asText(order.carrier),
+    trackingNumber: asText(order.tracking_number),
+    trackingUrl: asText(order.tracking_url),
+    deliveryNote: asText(order.delivery_note),
+    trackingUpdatedAt: asTimestamp(order.tracking_updated_at),
+    cancellationReason: asText(order.cancellation_reason),
+    cancellationNote: asText(order.cancellation_note),
+    cancelledBy: asText(order.cancelled_by),
+    restockedAt: asTimestamp(order.restocked_at),
     customer: {
       name: asText(customer.name) ?? asText(order.recipient_name) ?? 'Customer',
       email: asText(customer.email),
@@ -312,6 +351,9 @@ const ADMIN_ORDER_ERROR_CODES = new Set([
   'invalid_transition',
   'terminal_status',
   'no_change',
+  'invalid_shipment',
+  'invalid_cancellation_reason',
+  'invalid_cancellation_note',
 ]);
 
 function errorText(error: unknown): string {
@@ -429,6 +471,63 @@ export async function setAdminOrderPaymentStatus(
   const { error } = await supabase.rpc('admin_set_order_payment_status', {
     p_order_id: orderId,
     p_payment_status: paymentStatus,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Saves the shipment/tracking block (Phase G1) through the dedicated
+ * admin-only RPC, which re-checks `is_admin()` and writes ONLY carrier,
+ * tracking_number, tracking_url, delivery_note and tracking_updated_at.
+ *
+ * Deliberately separate from the two status RPCs: saving tracking details
+ * never changes the fulfilment status, never changes the payment status and
+ * never touches stock — an Admin can save tracking before or after marking the
+ * order Shipped.
+ */
+export async function setAdminOrderShipment(
+  orderId: string,
+  draft: Partial<ShipmentDraft>,
+): Promise<void> {
+  const shipment: ShipmentFields = normalizeShipmentInput(draft);
+
+  const { error } = await supabase.rpc('admin_set_order_shipment', {
+    p_order_id: orderId,
+    p_carrier: shipment.carrier,
+    p_tracking_number: shipment.trackingNumber,
+    p_tracking_url: shipment.trackingUrl,
+    p_delivery_note: shipment.deliveryNote,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Cancels an order with a required reason and optional internal note (Phase
+ * G2), through the dedicated admin-only RPC that also performs the
+ * exactly-once stock restoration.
+ *
+ * Server behaviour (migration 014): pending/confirmed/processing cancellations
+ * restore variant stock + legacy aggregate and stamp `restocked_at` exactly
+ * once; shipped cancellations are allowed but never auto-restock; delivered
+ * and cancelled orders are rejected (`terminal_status` / `no_change`).
+ * Payment state is NEVER changed here — cancelling a paid order leaves it
+ * `paid`, and no refund is issued (no Paystack refund API exists in this
+ * project).
+ *
+ * Validation is re-checked client-side for instant feedback, but the database
+ * remains the authority.
+ */
+export async function cancelAdminOrder(
+  orderId: string,
+  draft: { reason: string; note: string },
+): Promise<void> {
+  const input = validateCancellationInput(draft);
+  if (!input.ok) throw new Error(input.message);
+
+  const { error } = await supabase.rpc('admin_cancel_order', {
+    p_order_id: orderId,
+    p_reason: input.reason,
+    p_note: input.note,
   });
   if (error) throw error;
 }

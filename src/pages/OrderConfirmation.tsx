@@ -134,8 +134,12 @@ export function OrderConfirmation() {
           <h1 className="mt-5 text-4xl font-bold text-ghana-black dark:text-white md:text-5xl">
             Thank you — your order is in
           </h1>
+          {/* Payment is only "not taken" while it is actually unpaid — the page
+              is also the return target for a completed Paystack payment. */}
           <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-            We have saved your order against your account. No payment has been taken.
+            {order.paymentStatus === 'unpaid'
+              ? 'We have saved your order against your account. No payment has been taken yet — you can pay securely online.'
+              : 'We have saved your order against your account. Your payment has been recorded.'}
           </p>
 
           <dl className="mt-8 grid gap-4 rounded-lg bg-white p-6 sm:grid-cols-2 dark:bg-ghana-black">

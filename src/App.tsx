@@ -11,6 +11,7 @@ import { Cart } from './pages/Cart';
 import { Checkout } from './pages/Checkout';
 import { OrderConfirmation } from './pages/OrderConfirmation';
 import { PaymentCallback } from './pages/PaymentCallback';
+import { NotFound } from './pages/NotFound';
 import { CustomerLogin } from './pages/auth/CustomerLogin';
 import { CustomerSignup } from './pages/auth/CustomerSignup';
 import { AuthenticatedRoute } from './components/auth/AuthenticatedRoute';
@@ -80,6 +81,9 @@ function App() {
               <Route path="payments/:orderNumber" element={<AccountPaymentDetail />} />
             </Route>
           </Route>
+
+          {/* Phase G3 — one invalid-route state for every public/account URL. */}
+          <Route path="*" element={<NotFound />} />
         </Route>
 
         {/* Customer auth — standalone brand screens (own chrome, like admin login) */}
@@ -102,6 +106,8 @@ function App() {
                 a payment by its order id; no Paystack route exists yet. */}
             <Route path="payments" element={<AdminPayments />} />
             <Route path="payments/:orderId" element={<AdminPaymentDetail />} />
+            {/* Phase G3 — invalid admin path keeps the admin shell. */}
+            <Route path="*" element={<NotFound />} />
             {/* Later phases: collections, blog */}
           </Route>
         </Route>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface ConfirmDialogProps {
@@ -9,6 +9,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   danger?: boolean;
   busy?: boolean;
+  /** Optional form content rendered between the message and the actions. */
+  children?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -21,22 +23,34 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   danger = false,
   busy = false,
+  children,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
-    confirmRef.current?.focus();
+    // Focus the confirm button when it can take focus. When it cannot (busy,
+    // or blocked until a required field is filled) the browser silently
+    // ignores focus() on a disabled control, which would drop keyboard focus
+    // onto <body> — so the panel takes focus instead and keeps the user
+    // inside the dialog.
+    const confirm = confirmRef.current;
+    if (confirm && !confirm.disabled) {
+      confirm.focus();
+    } else {
+      panelRef.current?.focus();
+    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onCancel]);
+  }, [open, busy, onCancel]);
 
   return (
     <AnimatePresence>
@@ -53,6 +67,8 @@ export function ConfirmDialog({
           />
 
           <motion.div
+            ref={panelRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -66,6 +82,8 @@ export function ConfirmDialog({
             <p className="mt-3 text-sm text-ghana-black/70 dark:text-white/70 leading-relaxed">
               {message}
             </p>
+
+            {children}
 
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button

@@ -1,19 +1,34 @@
 import { Check, XCircle } from 'lucide-react';
-import { FULFILMENT_STEPS, ORDER_STATUS_LABELS } from '../../lib/account/orders';
+import { FULFILMENT_STEPS, customerStatusLabel, formatOrderDate } from '../../lib/account/orders';
 import type { OrderStatus } from '../../lib/supabase';
 
 /**
- * Restrained fulfilment timeline (Phase E2).
+ * Restrained fulfilment timeline (Phase E2, refined in Phase G3).
  *
  * Pending → Confirmed → Processing → Shipped → Delivered, with the status
  * recorded on the order highlighted. `cancelled` is a terminal state rendered
  * on its own — it is never shown as a step on the progress line.
  *
+ * Stage wording comes from the single customer mapping
+ * (`CUSTOMER_STATUS_LABELS` in `src/lib/orders/status.ts`), so this component
+ * never invents status text of its own.
+ *
+ * Stage states are never signalled by colour alone: every step carries a text
+ * caption (Done / Current / Upcoming) and `aria-current="step"` on the current
+ * one. The delivered date is shown only when the order actually records one —
+ * no estimated delivery dates are ever invented.
+ *
  * This reflects the status stored on the order. It is deliberately NOT live
  * courier tracking: there is no carrier integration, no GPS and no map, and the
  * copy says so.
  */
-export function OrderStatusTimeline({ status }: { status: OrderStatus }) {
+interface OrderStatusTimelineProps {
+  status: OrderStatus;
+  /** Recorded `delivered_at` — rendered only when present. */
+  deliveredAt?: string | null;
+}
+
+export function OrderStatusTimeline({ status, deliveredAt }: OrderStatusTimelineProps) {
   const cancelled = status === 'cancelled';
   const currentIndex = FULFILMENT_STEPS.indexOf(status);
 
@@ -36,59 +51,66 @@ export function OrderStatusTimeline({ status }: { status: OrderStatus }) {
         <div className="mt-5 flex items-start gap-3 rounded-lg border border-ghana-red/40 p-4">
           <XCircle size={18} aria-hidden="true" className="mt-0.5 flex-shrink-0 text-ghana-red" />
           <div>
-            <p className="text-sm font-semibold text-ghana-red">
-              {ORDER_STATUS_LABELS.cancelled}
-            </p>
+            <p className="text-sm font-semibold text-ghana-red">{customerStatusLabel('cancelled')}</p>
             <p className="mt-1 text-xs text-ghana-black/60 dark:text-white/60">
               This order was cancelled and its progress stops here.
             </p>
           </div>
         </div>
       ) : (
-        <ol className="mt-5 space-y-4 sm:grid sm:grid-cols-5 sm:gap-3 sm:space-y-0">
-          {FULFILMENT_STEPS.map((step, index) => {
-            const done = index < currentIndex;
-            const current = index === currentIndex;
+        <>
+          <ol className="mt-5 space-y-4 sm:grid sm:grid-cols-5 sm:gap-3 sm:space-y-0">
+            {FULFILMENT_STEPS.map((step, index) => {
+              const done = index < currentIndex;
+              const current = index === currentIndex;
 
-            return (
-              <li
-                key={step}
-                className="flex items-start gap-3 sm:block"
-                aria-current={current ? 'step' : undefined}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
-                    done
-                      ? 'bg-ghana-green text-white'
-                      : current
-                        ? 'border-2 border-ghana-green text-ghana-green'
-                        : 'border border-ghana-black/15 text-ghana-black/40 dark:border-white/20 dark:text-white/40'
-                  }`}
+              return (
+                <li
+                  key={step}
+                  className="flex items-start gap-3 sm:block"
+                  aria-current={current ? 'step' : undefined}
                 >
-                  {done ? <Check size={13} strokeWidth={3} /> : index + 1}
-                </span>
-
-                <span className="sm:mt-2 sm:block">
                   <span
-                    className={`block text-sm ${
-                      current
-                        ? 'font-semibold text-ghana-black dark:text-white'
-                        : done
-                          ? 'text-ghana-black/75 dark:text-white/75'
-                          : 'text-ghana-black/45 dark:text-white/45'
+                    aria-hidden="true"
+                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                      done
+                        ? 'bg-ghana-green text-white'
+                        : current
+                          ? 'border-2 border-ghana-green text-ghana-green'
+                          : 'border border-ghana-black/15 text-ghana-black/40 dark:border-white/20 dark:text-white/40'
                     }`}
                   >
-                    {ORDER_STATUS_LABELS[step]}
+                    {done ? <Check size={13} strokeWidth={3} /> : index + 1}
                   </span>
-                  <span className="mt-0.5 block text-[10px] uppercase tracking-[0.16em] text-ghana-black/40 dark:text-white/40">
-                    {done ? 'Done' : current ? 'Current' : 'Upcoming'}
+
+                  <span className="sm:mt-2 sm:block">
+                    <span
+                      className={`block text-sm ${
+                        current
+                          ? 'font-semibold text-ghana-black dark:text-white'
+                          : done
+                            ? 'text-ghana-black/75 dark:text-white/75'
+                            : 'text-ghana-black/45 dark:text-white/45'
+                      }`}
+                    >
+                      {customerStatusLabel(step)}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] uppercase tracking-[0.16em] text-ghana-black/40 dark:text-white/40">
+                      {done ? 'Done' : current ? 'Current' : 'Upcoming'}
+                    </span>
                   </span>
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+                </li>
+              );
+            })}
+          </ol>
+
+          {/* Recorded delivery date only — never an estimated one. */}
+          {deliveredAt && (
+            <p className="mt-4 border-t border-ghana-black/10 pt-4 text-xs text-ghana-black/60 dark:border-white/10 dark:text-white/60">
+              Delivered on {formatOrderDate(deliveredAt)}.
+            </p>
+          )}
+        </>
       )}
     </section>
   );

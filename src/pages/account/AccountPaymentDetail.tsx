@@ -6,7 +6,7 @@ import { GlitchBrand } from '../../components/GlitchBrand';
 import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceButton';
 import { PaymentAction } from '../../components/payments/PaymentAction';
 import { formatGhs } from '../../lib/catalogue/products';
-import { ORDER_STATUS_LABELS, formatOrderDate } from '../../lib/account/orders';
+import { customerStatusLabel, formatOrderDate } from '../../lib/account/orders';
 import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATE_TITLES,
@@ -340,9 +340,9 @@ export function AccountPaymentDetail() {
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-ghana-black/50 dark:text-white/50">Order status</dt>
+                <dt className="text-ghana-black/50 dark:text-white/50">Fulfilment</dt>
                 <dd className="text-right text-ghana-black/80 dark:text-white/80">
-                  {ORDER_STATUS_LABELS[payment.orderStatus]}
+                  {customerStatusLabel(payment.orderStatus)}
                 </dd>
               </div>
             </dl>

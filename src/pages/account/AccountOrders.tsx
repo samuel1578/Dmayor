@@ -7,13 +7,13 @@ import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceBu
 import { formatGhs } from '../../lib/catalogue/products';
 import {
   ORDER_FILTERS,
-  ORDER_STATUS_LABELS,
-  PAYMENT_STATUS_LABELS,
   countOrdersByFilter,
+  customerStatusLabel,
   formatItemCount,
   formatOrderDate,
   listMyOrders,
   orderMatchesFilter,
+  paymentSummaryLabel,
   type OrderFilter,
   type OrderSummary,
 } from '../../lib/account/orders';
@@ -22,8 +22,9 @@ import {
  * Order history (Phase E2) — the customer's own orders, newest first.
  *
  * Reads are RLS-scoped to `auth.uid()`, so this list can only ever contain the
- * signed-in customer's orders. Read-only: no editing, no cancellation (that
- * rule is still unconfirmed — see the sprint log's open commerce questions).
+ * signed-in customer's orders. Read-only: customers never change fulfilment or
+ * payment status here — every status change is made by an Admin (Phases E3,
+ * G2/G3).
  *
  * Filters are applied to the loaded list, so switching between All / Active /
  * Delivered / Cancelled costs no extra requests.
@@ -173,6 +174,8 @@ export function AccountOrders() {
                     </p>
                   </div>
 
+                  {/* Payment and fulfilment are separate lines of text — never
+                      colour alone, never inferred from each other (Phase G3). */}
                   <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] uppercase tracking-[0.16em]">
                     <span
                       className={
@@ -183,7 +186,7 @@ export function AccountOrders() {
                             : 'text-ghana-black/60 dark:text-white/60'
                       }
                     >
-                      {ORDER_STATUS_LABELS[order.status]}
+                      Fulfilment: {customerStatusLabel(order.status)}
                     </span>
                     <span
                       className={
@@ -194,7 +197,7 @@ export function AccountOrders() {
                             : 'text-ghana-black/60 dark:text-white/60'
                       }
                     >
-                      Payment: {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                      Payment: {paymentSummaryLabel(order.paymentStatus, order.paymentSource)}
                     </span>
                   </div>
 

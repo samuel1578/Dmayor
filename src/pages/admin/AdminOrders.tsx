@@ -241,7 +241,7 @@ export function AdminOrders() {
                   <th className="text-right font-normal pb-3 pr-4">Items</th>
                   <th className="text-right font-normal pb-3 pr-4">Total</th>
                   <th className="text-left font-normal pb-3 pr-4">Payment</th>
-                  <th className="text-left font-normal pb-3">Status</th>
+                  <th className="text-left font-normal pb-3">Fulfilment</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,6 +292,16 @@ export function AdminOrders() {
                       >
                         {ORDER_STATUS_LABELS[order.status]}
                       </span>
+                      {/* Phase G1 — compact tracking indicator, shipped orders only. */}
+                      {order.status === 'shipped' &&
+                        (order.trackingNumber || order.carrier ? (
+                          <span
+                            title="Shipment details saved"
+                            className="mt-1 block max-w-[12rem] truncate font-mono text-[10px] text-ghana-black/50 dark:text-white/50"
+                          >
+                            {order.trackingNumber ?? `${order.carrier} · Tracking added`}
+                          </span>
+                        ) : null)}
                     </td>
                   </tr>
                 ))}
@@ -324,22 +334,41 @@ export function AdminOrders() {
                   <p className="truncate">{order.customerEmail ?? 'No email on record'}</p>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span
-                    className={`text-[10px] uppercase tracking-[0.14em] border rounded-full px-3 py-1 ${statusPillClass(
-                      order.status,
-                    )}`}
-                  >
-                    {ORDER_STATUS_LABELS[order.status]}
-                  </span>
-                  <span
-                    className={`text-[10px] uppercase tracking-[0.14em] border rounded-full px-3 py-1 ${paymentPillClass(
-                      order.paymentStatus,
-                    )}`}
-                  >
-                    {PAYMENT_STATUS_LABELS[order.paymentStatus]}
-                  </span>
+                {/* Both domains, each labelled — status text is never
+                    signalled by colour or position alone. */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.14em] text-ghana-black/50 dark:text-white/50">
+                      Fulfilment
+                    </span>
+                    <span
+                      className={`text-[10px] uppercase tracking-[0.14em] border rounded-full px-3 py-1 ${statusPillClass(
+                        order.status,
+                      )}`}
+                    >
+                      {ORDER_STATUS_LABELS[order.status]}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.14em] text-ghana-black/50 dark:text-white/50">
+                      Payment
+                    </span>
+                    <span
+                      className={`text-[10px] uppercase tracking-[0.14em] border rounded-full px-3 py-1 ${paymentPillClass(
+                        order.paymentStatus,
+                      )}`}
+                    >
+                      {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Phase G1 — compact tracking indicator, shipped orders only. */}
+                {order.status === 'shipped' && (order.trackingNumber || order.carrier) && (
+                  <p className="mt-2 truncate font-mono text-[10px] text-ghana-black/50 dark:text-white/50">
+                    {order.trackingNumber ?? `${order.carrier} · Tracking added`}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

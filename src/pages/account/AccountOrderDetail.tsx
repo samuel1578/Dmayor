@@ -6,9 +6,9 @@ import { GlitchBrand } from '../../components/GlitchBrand';
 import { DownloadInvoiceButton } from '../../components/orders/DownloadInvoiceButton';
 import { OrderDetailView } from '../../components/account/OrderDetailView';
 import {
-  PAYMENT_STATUS_LABELS,
   formatOrderDate,
   getMyOrder,
+  paymentSummaryLabel,
   type OrderDetail,
 } from '../../lib/account/orders';
 
@@ -142,12 +142,13 @@ export function AccountOrderDetail() {
       </div>
 
       {/* Phase H0.2 — restrained payment action area linking to the payment
-          center. Payment metadata is not duplicated here. */}
+          center. Payment metadata is not duplicated here; fulfilment is shown
+          by the timeline above, payment by this row — the two never merge. */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ghana-black/10 p-5 dark:border-white/10">
         <p className="text-sm text-ghana-black/70 dark:text-white/70">
           Payment:{' '}
           <span className="font-medium text-ghana-black dark:text-white">
-            {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+            {paymentSummaryLabel(order.paymentStatus, order.paymentSource)}
           </span>
         </p>
         <Link

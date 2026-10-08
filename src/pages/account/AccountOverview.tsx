@@ -6,12 +6,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { countAddresses } from '../../lib/account/addresses';
 import {
-  ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   countMyOrders,
+  customerStatusLabel,
   formatItemCount,
   formatOrderDate,
   getRecentOrder,
+  paymentSummaryLabel,
   type OrderSummary,
 } from '../../lib/account/orders';
 import { formatGhs } from '../../lib/catalogue/products';
@@ -241,9 +242,11 @@ export function AccountOverview() {
 
               <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] uppercase tracking-[0.16em] text-ghana-black/60 dark:text-white/60">
                 <span className={recentOrder.status === 'cancelled' ? 'text-ghana-red' : ''}>
-                  {ORDER_STATUS_LABELS[recentOrder.status]}
+                  Fulfilment: {customerStatusLabel(recentOrder.status)}
                 </span>
-                <span>Payment: {PAYMENT_STATUS_LABELS[recentOrder.paymentStatus]}</span>
+                <span>
+                  Payment: {paymentSummaryLabel(recentOrder.paymentStatus, recentOrder.paymentSource)}
+                </span>
               </div>
 
               {/* Restrained: one view action and one invoice download, not an

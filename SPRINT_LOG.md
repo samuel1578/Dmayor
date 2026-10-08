@@ -1776,3 +1776,129 @@ Deep-link and refresh support for the whole React Router surface, and a hard pre
 
 ### Manual steps still required
 1) Apply `012_paystack_webhook_reconciliation.sql`. 2) Deploy `paystack-webhook` (verify_jwt off) and `reconcile-payment`. 3) Add webhook URL `https://jhvtkqqtipbocdtcnijl.supabase.co/functions/v1/paystack-webhook` in the Paystack dashboard. 4) Test in Paystack Test Mode (webhook-only, duplicate resend, reconcile, manual conflict).
+
+---
+
+## Sprint: Phase G1 — Shipment & Tracking Foundation
+**Date:** 2026-10-08
+**Status:** Implemented locally; NOT deployed (migration never executed here)
+**Scope:** Manual shipment/tracking data + its two surfaces (Admin edit flow, customer tracking block). **NOT built:** cancellation restocking, automatic delivery updates, courier APIs, email/SMS, customer cancellation, refunds automation, fulfilment automation, Collections, Blog, live courier progress, shipment-event history, page redesigns. No screenshots / Playwright / Puppeteer. Full detail in `SPRINT_G1_SHIPMENT_TRACKING.md`.
+
+### Migration
+- `supabase/migrations/013_order_tracking_foundation.sql` (forward-only, idempotent): five nullable columns on `public.orders` — `carrier` (≤120, free text, **no carrier enum**), `tracking_number` (≤120), `tracking_url` (≤500, CHECK `^https?://[^[:space:]]+$` — `javascript:`/`data:`/etc. rejected), `delivery_note` (≤500), `tracking_updated_at`; four guarded CHECK constraints; new `admin_set_order_shipment(uuid,text,text,text,text)`; `admin_list_orders` dropped + recreated with two appended columns (`carrier`, `tracking_number`) because `CREATE OR REPLACE` cannot change a return type — 009 itself untouched.
+- `admin_get_order` needed no change (`to_jsonb(o)` already returns new columns).
+
+### Admin Shipment Management
+- RPC is the **only writer** of the four fields: fails closed on `public.is_admin()` before any write, `SECURITY DEFINER` + `set search_path = public, pg_temp`, `<code>|<sentence>` errors (`not_authorized`, `invalid_shipment`, `order_not_found`), trims input and turns blanks into NULL (clears the field). Its UPDATE assigns exactly `carrier, tracking_number, tracking_url, delivery_note, tracking_updated_at` — **never** `status`, `payment_status`, `paid_at`, `shipped_at` or any stock/payment column.
+- **Uncoupled from status:** entering tracking never marks the order Shipped, marking Shipped never requires tracking; the existing `admin_set_order_status` transition map is untouched.
+- `AdminOrderDetail` gains a compact **Shipment / Tracking** section (below Fulfilment): view mode lists only present values (+ "Last saved") or one explanatory line; edit mode offers four inputs (`maxLength` mirrors DB limits) with Save/Cancel, client-side http(s)-only URL check, existing `input-field`/`Feedback`/reload patterns. `AdminOrders` shows a subtle line under the status pill **for shipped orders with tracking only** (tracking number, or `<carrier> · Tracking added`).
+
+### Customer Tracking
+- `OrderShipment.tsx` card rendered by the shared `OrderDetailView` directly under the status timeline (near the Shipped stage): carrier, tracking number, delivery note (labelled customer-visible) and a **Track package** button — and **nothing at all** when no shipment data exists (no empty labels).
+- Link safety: `safeTrackingUrl()` re-validates on render, so only validated `http(s)` URLs are ever emitted; external link uses `target="_blank" rel="noopener noreferrer"`.
+- Timeline lifecycle preserved exactly (`Pending → Confirmed → Processing → Shipped → Delivered`); copy still says "not live courier tracking". Visibility is not gated on status (no coupling).
+
+### Security
+- Customers: shipment data read through the existing own-order RLS (`auth.uid() = user_id`, SELECT only); **no** new grants/policies, no client write helper anywhere; unsafe stored URLs can never become clickable links.
+- Admins: write exclusively through the fail-closed RPC (`authenticated` only; `public`/`anon` revoked). No secrets, no Edge Functions, no payment-code changes.
+
+### Tests
+- New `src/lib/shipment.ts` (pure helpers) + `src/lib/shipment.test.ts` (24) and `src/lib/orders.shipment.test.ts` (11, mocked Supabase + static assertions against migration 013). Cover all 10 required cases: admin save; non-admin blocked; no order-status change; no payment-status change; HTTPS accepted; invalid schemes rejected; customer sees own tracking; customer cannot mutate; missing tracking renders cleanly; shipped+tracking shows the customer CTA.
+
+### Files changed
+- New: `supabase/migrations/013_order_tracking_foundation.sql`, `src/lib/shipment.ts`, `src/lib/shipment.test.ts`, `src/lib/orders.shipment.test.ts`, `src/components/account/OrderShipment.tsx`, `SPRINT_G1_SHIPMENT_TRACKING.md`.
+- Modified: `src/lib/supabase.ts` (`OrderRow`), `src/lib/admin/orders.ts` (`AdminOrder`/`AdminOrderListItem` + mappers + `setAdminOrderShipment` + `invalid_shipment`), `src/lib/account/orders.ts` (`OrderDetail`, `DETAIL_SELECT`, mapper), `src/pages/admin/AdminOrderDetail.tsx`, `src/pages/admin/AdminOrders.tsx`, `src/components/account/OrderDetailView.tsx`, `SPRINT_LOG.md`.
+
+### Verification
+- `npm run typecheck` → exit 0. `npm run lint` → exit 0, 0 errors (same 4 pre-existing warnings in `src/contexts/*`). `npm test` → **91 passed / 7 files** (56 before + 35 new). `npm run build` → exit 0.
+- Migration verified by construction + static test assertions only — **no SQL executed anywhere**; Deno / Supabase CLI unavailable here (reported as a limitation).
+
+### Manual steps still required
+1) Apply `013_order_tracking_foundation.sql` (the intentional `drop … admin_list_orders` + recreate is inside it). 2) Smoke-test the Admin shipment save, the unsafe-URL rejection, and the customer tracking card. 3) Confirm shipped rows show the compact indicator in `/admin/orders`.
+
+---
+
+## Sprint: Phase G2 — Cancellation & Stock Lifecycle
+**Date:** 2026-10-08
+**Status:** Implemented locally; NOT deployed (migration never executed here)
+**Scope:** Controlled, exactly-once stock restoration for eligible cancellations + required cancellation reason. **NOT built:** automatic refunds, Paystack refund API, customer self-cancellation, courier integrations, email notifications, Collections, Blog, unpaid-order expiry, page redesigns. No screenshots / browser automation. Full detail in `SPRINT_G2_CANCELLATION_STOCK.md`.
+
+### Owner decisions (asked before building)
+1. **Shipped → Cancelled stays allowed** (009 semantics unchanged) but **never auto-restocks** — inventory handled manually outside the app; `restocked_at` stays NULL.
+2. **Reason enforcement is UI-level only** — the Admin UI always cancels through the new `admin_cancel_order` (reason required); `admin_set_order_status` keeps its original reason-less cancel path untouched (so a legacy-path cancellation records no reason and does not restock — surfaced in the Admin card as "Not recorded"/"Not restored").
+
+### Migration
+- `supabase/migrations/014_order_cancellation_stock_lifecycle.sql` (forward-only, idempotent): four nullable columns on `public.orders` — `restocked_at` (exactly-once marker), `cancellation_reason` (constrained code: customer_request | item_unavailable | duplicate_order | payment_issue | operational_issue | other), `cancellation_note` (internal, ≤500), `cancelled_by uuid → auth.users ON DELETE SET NULL`; three guarded CHECK constraints (reason set, note length, `restocked_at IS NULL OR status = 'cancelled'`); new `admin_cancel_order(uuid, text, text)`. No existing function dropped/redefined; no payment column touched; no new table grants.
+
+### Restock Logic (exactly-once, atomic)
+- `admin_cancel_order`: fail-closed `is_admin()` → validate reason/note → **`SELECT … FOR UPDATE`** → reject `cancelled` (`no_change`) and `delivered` (`terminal_status`) → compute eligibility `{pending, confirmed, processing} AND restocked_at IS NULL` → cancel (`cancelled_at`, reason, note, `cancelled_by = auth.uid()`) → in the same transaction restore `product_variants.stock` by **`order_items.variant_id`** (grouped; never size/colour/SKU reconstruction), re-derive legacy `products.stock` with the checkout strategy (`sum` of active variant stock), and stamp `restocked_at` guarded by `AND restocked_at IS NULL`. Three idempotency layers: row lock, terminal rejection before any write, the marker. No client flag is trusted.
+- Shipped cancellations skip the restock block entirely (eligibility excludes `shipped`).
+
+### Paid vs Unpaid
+- The RPC never assigns `payment_status`/`paid_at` and calls no payment function: a cancelled paid order stays **Paid**; unpaid stays **Unpaid**. No refund API, no refund button — refunds remain separately recorded acts.
+
+### Admin UX
+- Fulfilment card's cancel action now opens a reason dialog (`ConfirmDialog` gained an optional content slot; existing dialogs unaffected): required reason select, optional internal note, in-dialog errors, eligibility copy (auto-restock "once only" vs shipped "stock will NOT be restored automatically"), and **"Cancelling this order does not refund the payment."** (strengthened when paid).
+- New Cancellation record card for cancelled orders (replaces E3's now-stale "Stock was not restocked" blocker): Cancelled date, Reason label (or "Not recorded"), Note, Stock ("Restored <date>" / "Not restored" + Products link), and for paid orders **"Payment remains recorded as paid. Refunds are handled separately."**
+
+### Customer UX
+- Shared `OrderDetailView` shows a Cancellation block under the timeline: "Cancelled on <date>." plus a customer-safe reason sentence (`other`/unknown → date only). Internal note, admin actor and restock marker are never selected for customers. Timeline lifecycle untouched.
+
+### Security
+- Customers: read-only via existing own-order RLS; no new grants/policies; no client write path; no self-cancellation. Admins: stock writes only inside the SECURITY DEFINER RPC (`authenticated` only, `public`/`anon` revoked); `cancelled_by` records `auth.uid()`.
+
+### Tests
+- New `src/lib/cancellation.ts` (pure vocabulary/validation/customer text) + `src/lib/cancellation.test.ts` (13) and `src/lib/orders.cancellation.test.ts` (14, static SQL assertions against migration 014 + mocked client). Cover all 15 required cases (see table in the sprint doc).
+
+### Files changed
+- New: `supabase/migrations/014_order_cancellation_stock_lifecycle.sql`, `src/lib/cancellation.ts`, `src/lib/cancellation.test.ts`, `src/lib/orders.cancellation.test.ts`, `SPRINT_G2_CANCELLATION_STOCK.md`.
+- Modified: `src/lib/supabase.ts` (`OrderRow`), `src/lib/admin/orders.ts` (`AdminOrder` + mapper + `cancelAdminOrder` + error codes), `src/lib/account/orders.ts` (`OrderDetail`, `DETAIL_SELECT`, mapper), `src/components/admin/ConfirmDialog.tsx` (optional children slot), `src/pages/admin/AdminOrderDetail.tsx`, `src/components/account/OrderDetailView.tsx`, `SPRINT_LOG.md`.
+
+### Verification
+- `npm run typecheck` → exit 0. `npm run lint` → exit 0, 0 errors (same 4 pre-existing warnings in `src/contexts/*`). `npm test` → **118 passed / 9 files** (91 before + 27 new). `npm run build` → exit 0.
+- Migration verified by construction + static test assertions only — **no SQL executed anywhere**; Deno / Supabase CLI unavailable (reported as a limitation).
+
+### Manual steps still required
+1) Apply `014_order_cancellation_stock_lifecycle.sql`. 2) Cancel a pending/confirmed/processing order and verify variant + legacy stock restored once; cancel a shipped order and verify stock NOT restored. 3) Cancel a paid order and verify it stays Paid with the "refunds handled separately" notice. 4) Check the customer page shows date + safe reason only.
+
+---
+
+## Sprint: Phase G3 — Fulfilment UX & Operational Polish
+**Date:** 2026-10-08
+**Status:** Implemented locally; NOT deployed
+**Scope:** Wording centralisation, customer timeline polish, Admin fulfilment controls, de-duplication, invalid-route state, focus/stale-copy fixes. **NOT built:** courier APIs, emails/SMS, refunds, collections, blog, discount codes, new order states, any migration. No screenshots / browser automation. Full detail in `SPRINT_G3_FULFILMENT_POLISH.md`.
+
+### One source of wording (`src/lib/orders/status.ts`, new)
+- Single module exporting `ORDER_STATUSES` (the only six: pending, confirmed, processing, shipped, delivered, cancelled), `FULFILMENT_STEPS`, `ACTIVE_ORDER_STATUSES`, `TERMINAL_ORDER_STATUSES`, `ORDER_STATUS_LABELS` (operations wording), `CUSTOMER_STATUS_LABELS` + `customerStatusLabel()`, `ORDER_STATUS_ACTION_LABELS` + `orderStatusActionLabel()`, `PAYMENT_STATUS_LABELS` / `PAYMENT_STATUS_OPTIONS` / `PAYMENT_SOURCE_LABELS`, `paymentStatusLabel()`, `paymentSummaryLabel()`.
+- Required customer wording used verbatim: **Order received · Order confirmed · Preparing your order · Order shipped · Delivered · Order cancelled**.
+- `account/orders.ts`, `account/payments.ts`, `admin/orders.ts`, `admin/payments.ts` now **re-export** these instead of declaring their own `pending: …` / `paid: …` maps — duplicate label literals are gone from every lib module.
+- `paymentSummaryLabel()` keeps the domains apart (`Paid · Paystack`, `Paid · Manual`; `Unpaid` never carries a source) — payment never implies fulfilment and vice versa.
+
+### Customer surfaces
+- Timeline (`OrderStatusTimeline`): shared customer wording for stages and the cancelled branch, text captions (Done / Current / Upcoming), `aria-current="step"`, a `Delivered on <date>` line only when `delivered_at` exists.
+- `AccountOrders` / `AccountOverview` → `Fulfilment: <customer wording>` + `Payment: <summary>`; `AccountPaymentDetail` related order → `Fulfilment:`; invoice order-status row → customer wording.
+- **Tracking gating (refines G1):** `showTrackingFor(status, shippedAt)` — the customer Shipment card renders only from `shipped` onward; hidden while pending/confirmed/processing. `shipped_at`, `delivered_at` and `payment_source` added to `SUMMARY_SELECT`/`DETAIL_SELECT` + mappers (**all columns already exist** — no migration).
+
+### Admin controls
+- Transition buttons use shared action labels (`Confirm order`, `Start processing`, `Mark shipped`, `Mark delivered`, `Cancel order…`) instead of `Mark as <status>`.
+- **Non-blocking tracking warning** with the exact string `No tracking information has been added.` (`TRACKING_MISSING_WARNING`): shown in the Fulfilment card when no shipment data exists and the order is shippable/already shipped, rendered as `role="status"`, appended to the ship success feedback — and never a blocker (shipping without tracking still works).
+- De-duplication: cancelled date dropped from the milestone list (the Cancellation card owns it); delivery address no longer repeats the phone; `AdminOrders` column `Status` → **`Fulfilment`** with mobile pills given explicit Fulfilment/Payment labels; Payment card `Current:` line now `Paid · Paystack`-style via `AdminOrder.paymentSource` (read from `admin_get_order`).
+
+### Invalid route + polish
+- New `src/pages/NotFound.tsx` (404 state, one way back) wired as `path="*"` inside the public `Layout` **and** `AdminLayout` — no 404 route existed before.
+- `ConfirmDialog`: focus falls back to the dialog panel (`tabIndex={-1}`) when the confirm button cannot take focus, so keyboard focus never drops to `<body>`; re-runs on `busy`.
+- `OrderConfirmation`: "No payment has been taken." now only appears while the order is actually unpaid (the page is also the Paystack return target).
+
+### Tests
+- New `src/lib/orders.fulfilment.test.ts` — **14 tests** covering all 10 required cases: six-status model + banned-word scan; verbatim customer wording + shopper surfaces never using Admin labels; shared action labels; client transitions == migration **009 lines 294–297** (+ terminal states, `terminal_status`/`no_change`); payment/fulfilment separation + status RPC payload; exact warning string and non-blocking rendering; `showTrackingFor` gating; no local label maps; two labelled rows; 404 wiring.
+
+### Files changed
+- New: `src/lib/orders/status.ts`, `src/lib/orders.fulfilment.test.ts`, `src/pages/NotFound.tsx`, `SPRINT_G3_FULFILMENT_POLISH.md`.
+- Modified: `src/lib/shipment.ts`, `src/lib/account/orders.ts`, `src/lib/account/payments.ts`, `src/lib/admin/orders.ts`, `src/lib/admin/payments.ts`, `src/lib/orders/invoice.ts`, `src/components/account/OrderStatusTimeline.tsx`, `src/components/account/OrderDetailView.tsx`, `src/components/admin/ConfirmDialog.tsx`, `src/pages/account/{AccountOrders,AccountOverview,AccountOrderDetail,AccountPaymentDetail}.tsx`, `src/pages/admin/{AdminOrders,AdminOrderDetail}.tsx`, `src/pages/OrderConfirmation.tsx`, `src/App.tsx`, `SPRINT_LOG.md`.
+
+### Verification
+- `npm run typecheck` → exit 0. `npm run lint` → exit 0, 0 errors (same 4 pre-existing warnings in `src/contexts/*`). `npm test` → **132 passed / 10 files** (118 before + 14 new). `npm run build` → exit 0.
+- **No migration added or executed**; no SQL run anywhere. No screenshots / Playwright / Puppeteer.
+
+### Manual steps still required
+1) Walk the 10-step procedure in `SPRINT_G3_FULFILMENT_POLISH.md` (Admin ship-without-tracking warning, labelled queue columns, customer wording, tracking gating, `/does-not-exist` 404, dialog focus). 2) Nothing to apply in Supabase for this sprint.

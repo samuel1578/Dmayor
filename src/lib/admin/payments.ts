@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase';
 import { ORDER_STATUS_LABELS } from '../account/orders';
+import { PAYMENT_STATUS_OPTIONS } from '../orders/status';
 import { describeMutationError } from './errors';
 
 /**
@@ -20,29 +21,14 @@ import { describeMutationError } from './errors';
  */
 
 /* -------------------------------------------------------------------------- */
-/* Vocabulary                                                                 */
+/* Vocabulary — re-exported from the single central module (Phase G3)         */
 /* -------------------------------------------------------------------------- */
 
-export {
-  PAYMENT_STATUS_LABELS,
-  ORDER_STATUS_LABELS,
-} from '../account/orders';
-
-/** Selectable payment states (all four are manual records, not transitions). */
-export const PAYMENT_STATUS_OPTIONS: readonly OrderPaymentStatus[] = [
-  'unpaid',
-  'paid',
-  'failed',
-  'refunded',
-];
+export { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '../account/orders';
+export { PAYMENT_STATUS_OPTIONS, PAYMENT_SOURCE_LABELS } from '../orders/status';
 
 /** Allowed attribution values. `paystack` may show zero results until Phase F. */
 export const PAYMENT_SOURCE_OPTIONS: readonly PaymentSource[] = ['manual', 'paystack'];
-
-export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
-  manual: 'Manual',
-  paystack: 'Paystack',
-};
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */
