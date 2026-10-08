@@ -12,8 +12,9 @@ import { describeMutationError } from './errors';
  * The two status domains are kept strictly independent: there is no helper that
  * changes both, and nothing here infers fulfilment from payment or vice-versa.
  *
- * There is no payment provider: `setAdminOrderPaymentStatus` records what an
- * Admin observed happening outside the app (bank transfer, MoMo, cash).
+ * Payment status reflects both verified Paystack transactions and
+ * admin-recorded manual payments: `setAdminOrderPaymentStatus` records a manual
+ * payment (bank transfer, MoMo, cash) with `payment_source = 'manual'`.
  */
 
 /* -------------------------------------------------------------------------- */

@@ -11,6 +11,7 @@
 export const ERROR_CODES = {
   method_not_allowed: 405,
   not_authenticated: 401,
+  not_authorized: 403,
   invalid_request: 400,
   order_not_found: 404,
   order_not_owned: 403,
@@ -31,6 +32,7 @@ export type ErrorCode = keyof typeof ERROR_CODES;
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   method_not_allowed: 'This endpoint only accepts POST requests.',
   not_authenticated: 'Please sign in to continue.',
+  not_authorized: 'You do not have permission to perform this action.',
   invalid_request: 'The request was not valid.',
   order_not_found: 'That order could not be found.',
   order_not_owned: 'That order does not belong to your account.',

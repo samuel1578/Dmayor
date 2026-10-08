@@ -1740,3 +1740,39 @@ Deep-link and refresh support for the whole React Router surface, and a hard pre
 
 ### Manual steps still required before testing
 1) Apply `011_paystack_payment_foundation.sql` and deploy `initialize-payment` + `verify-payment` (if not already). 2) Confirm secrets `PAYSTACK_SECRET_KEY` and `SITE_URL=https://theproxyshop.vercel.app`. 3) Test in Paystack Test Mode (success + failed + manual-conflict paths).
+
+---
+
+## Sprint: Phase F3 — Paystack Webhooks, Idempotency & Reconciliation
+**Date:** 2026-10-08
+**Status:** Implemented locally; NOT deployed
+**Scope:** Reliability layer only. No emails, refunds, restock, cancellation, fulfilment automation, live keys or Admin redesign. Full detail in `SPRINT_F3_PAYSTACK_WEBHOOKS.md`.
+
+### Migration
+- `supabase/migrations/012_paystack_webhook_reconciliation.sql` (forward-only): `public.payment_events` (provider, event_type, `provider_event_key` UNIQUE, payment_reference, provider_transaction_id, order_id, payment_attempt_id, processing_status ∈ received|processed|ignored|failed, payload jsonb, error_code/message, received_at, processed_at, created_at). RLS enabled with **no policies** and all grants revoked (service-role only). `admin_list_payment_events(uuid,int)` — admin-only, payload-free read.
+- No second finalizer: webhook and reconcile-payment both call the F1 `record_paystack_payment`.
+
+### Edge Functions
+- `supabase/functions/paystack-webhook/` — reads the RAW body, verifies `x-paystack-signature` (HMAC-SHA512 over the exact bytes, constant-time, fail-closed 401), then parses; deterministic idempotency key `paystack:<event_type>:<transaction_id>`; idempotent event registration; for `charge.success` locates the attempt by reference, verifies server-to-server, validates reference/amount/currency/status, finalizes through the trusted RPC, records the event outcome. Deduplicates and acknowledges (200); transient failures return 500 so Paystack retries; conflicts/mismatches retained with error codes.
+- `supabase/functions/reconcile-payment/` — admin-only (`public.is_admin()` with the caller's token, fail closed → 403). Client sends only `{ orderId }`/`{ reference }`; server contacts Paystack and finalizes via the same RPC.
+- Shared pure modules: `_shared/webhook.ts` (HMAC, defensive parse, event key, idempotency decision), `_shared/finalization.ts` (injected verify+record core shared by the two new entry points), `_shared/reconcile.ts` (input parse + admin guard).
+- `supabase/config.toml`: `[functions.paystack-webhook] verify_jwt = false` (this function only).
+
+### Admin
+- Payment Detail: small Paystack attempts list (no raw payload) + a **Re-check Paystack** action for unpaid/failed orders with a Paystack attempt. Manual record flow unchanged.
+- Corrected now-false payment copy in the Admin dashboard (including Deferred: "Automated payments & receipts" → "Automated receipts"), payments list, order detail, orders list, and several stale internal comments. No redesign; no unrelated Deferred changes; no automated-receipts claim.
+
+### Tests
+- Added `supabase/functions/_shared/{webhook,finalization,reconcile}.test.ts`; `vitest.config.ts` now also discovers `supabase/functions/**/*.test.ts`. Covers all 18 required cases (signatures, parse, idempotency, races, mismatches, conflicts, admin guard, reconciliation). No real Paystack calls.
+
+### Files changed
+- New: migration `012`; `supabase/functions/paystack-webhook/`, `reconcile-payment/`, `_shared/{webhook,finalization,reconcile}.ts` + tests; `supabase/config.toml`; `SPRINT_F3_PAYSTACK_WEBHOOKS.md`.
+- Modified: `_shared/http.ts`, `_shared/types.ts`, `src/lib/payments/paystack.ts`, `src/lib/admin/payments.ts`, `src/pages/admin/{AdminPaymentDetail,AdminDashboard,AdminPayments,AdminOrderDetail,AdminOrders}.tsx`, `src/lib/admin/orders.ts`, `src/lib/account/payments.ts`, `src/pages/account/AccountPayments.tsx`, `src/pages/OrderConfirmation.tsx`, `vitest.config.ts`, `SPRINT_LOG.md`.
+
+### Verification
+- `npm run typecheck` → exit 0. `npm run lint` → exit 0, 0 errors (same 4 pre-existing warnings). `npm test` → 56 passed / 5 files. `npm run build` → exit 0.
+- Deno / Supabase CLI unavailable here → `deno check` / `deno lint` could not run (reported as a limitation); all Edge Function files syntax-checked with esbuild.
+- Migration not executed; nothing deployed remotely.
+
+### Manual steps still required
+1) Apply `012_paystack_webhook_reconciliation.sql`. 2) Deploy `paystack-webhook` (verify_jwt off) and `reconcile-payment`. 3) Add webhook URL `https://jhvtkqqtipbocdtcnijl.supabase.co/functions/v1/paystack-webhook` in the Paystack dashboard. 4) Test in Paystack Test Mode (webhook-only, duplicate resend, reconcile, manual conflict).

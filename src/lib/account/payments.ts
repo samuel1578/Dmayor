@@ -15,8 +15,9 @@ import type { OrderPaymentStatus, OrderStatus, PaymentSource } from '../supabase
  * database grants no customer write access to `orders`. Payment status is
  * changed by Admin only (Phase H0.1).
  *
- * No payment provider is contacted and no Paystack call exists. `Pay Now` /
- * `Retry Payment` are informational until Phase F.
+ * Payments can be completed through Paystack (initialized/verified server-side
+ * by the Edge Functions) or recorded manually by an authorised Admin; this
+ * module only ever READS the resulting order metadata.
  *
  * Queries are deliberately small and never per-row (no N+1): the list is one
  * select; the detail is one select; the recent payment reuses the list select

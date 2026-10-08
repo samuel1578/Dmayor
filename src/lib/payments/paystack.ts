@@ -22,6 +22,7 @@ import type { OrderPaymentStatus, OrderStatus } from '../supabase';
 export type PaymentErrorCode =
   | 'method_not_allowed'
   | 'not_authenticated'
+  | 'not_authorized'
   | 'invalid_request'
   | 'order_not_found'
   | 'order_not_owned'
@@ -39,6 +40,7 @@ export type PaymentErrorCode =
 const PAYMENT_ERROR_TEXT: Record<PaymentErrorCode, string> = {
   method_not_allowed: 'This action is not available right now.',
   not_authenticated: 'Please sign in to continue.',
+  not_authorized: 'You do not have permission to perform this action.',
   invalid_request: 'Something went wrong with that request. Please try again.',
   order_not_found: 'That order could not be found.',
   order_not_owned: 'We could not open that order.',
@@ -84,6 +86,20 @@ export interface ParsedPaymentError {
   message: string;
 }
 
+/** The safe payload returned by `reconcile-payment` (Admin only). */
+export interface ReconcilePaymentResult {
+  status: 'paid' | 'unpaid';
+  outcome: 'success' | 'already_verified' | 'failed' | 'abandoned' | 'pending';
+  orderId: string;
+  orderNumber: string;
+  reference: string;
+  amount: number;
+  currency: string;
+  channel: string | null;
+  paidAt: string | null;
+  attemptStatus: string | null;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Pure helpers (unit-tested, no network)                                     */
 /* -------------------------------------------------------------------------- */
@@ -123,6 +139,11 @@ export function buildInitializeBody(orderId: string): { orderId: string } {
 /** The exact body sent to `verify-payment` — reference only, never a status. */
 export function buildVerifyBody(reference: string): { reference: string } {
   return { reference };
+}
+
+/** The exact body sent to `reconcile-payment` — order id only, never money. */
+export function buildReconcileBody(orderId: string): { orderId: string } {
+  return { orderId };
 }
 
 export type PaymentActionKind = 'pay_now' | 'retry';
@@ -271,6 +292,28 @@ export async function verifyPaystackPayment(reference: string): Promise<VerifyPa
     typeof result.orderNumber !== 'string'
   ) {
     throw new PaymentRequestError(null, 'We could not verify this payment. Please try again.');
+  }
+
+  return result;
+}
+
+/**
+ * Admin-only reconciliation: asks the server to re-check an order's Paystack
+ * attempt against Paystack. The browser sends only the order id; the server
+ * performs all verification and the only order write path remains the trusted
+ * finalizer. Requires an authorised admin session.
+ */
+export async function reconcilePaystackPayment(orderId: string): Promise<ReconcilePaymentResult> {
+  const result = await invokePaymentFunction<ReconcilePaymentResult>(
+    'reconcile-payment',
+    buildReconcileBody(orderId),
+  );
+
+  if (
+    (result.status !== 'paid' && result.status !== 'unpaid') ||
+    typeof result.orderNumber !== 'string'
+  ) {
+    throw new PaymentRequestError(null, 'We could not reconcile this payment. Please try again.');
   }
 
   return result;

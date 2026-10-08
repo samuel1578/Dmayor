@@ -10,9 +10,13 @@ import { describeMutationError } from './errors';
  * `public.is_admin()` internally (fail closed). No extra table privileges are
  * granted to anyone, and customers keep their E1 read-only access.
  *
- * There is no payment provider. A payment record here describes something an
- * Admin observed happening outside the app (bank transfer, MoMo, cash). The
- * database — not the client — sets `payment_source = 'manual'`.
+ * Payment status now reflects BOTH verified Paystack transactions (`payment_source
+ * = 'paystack'`, written by the server-side payment finalizer) and authorised
+ * manual records (bank transfer, MoMo, cash). The database — not the client —
+ * sets `payment_source`; a manual save always records `'manual'`.
+ *
+ * Paystack reconciliation (`reconcilePaystackPayment`) re-checks a known
+ * attempt against Paystack server-side; the browser only supplies an order id.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -90,6 +94,25 @@ export interface AdminPaymentQuery {
   paymentSource?: PaymentSource | 'all';
   limit?: number;
   offset?: number;
+}
+
+/**
+ * One Paystack payment attempt for an order (Phase F3 admin view).
+ *
+ * Deliberately excludes the raw `provider_response` payload — webhook/provider
+ * payloads are backend/audit data and are never surfaced in the UI.
+ */
+export interface AdminPaymentAttempt {
+  id: string;
+  orderId: string;
+  provider: string;
+  reference: string;
+  status: string;
+  amount: number;
+  currency: string;
+  channel: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
 }
 
 export interface ManualPaymentInput {
@@ -284,6 +307,47 @@ export async function getAdminPayment(orderId: string): Promise<AdminPaymentDeta
 /* -------------------------------------------------------------------------- */
 /* Mutations (manual, admin-only)                                             */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * The Paystack attempts recorded for one order (newest first). Reads the
+ * admin-only `admin_list_payment_attempts` RPC; the raw provider payload is
+ * never mapped into the returned shape.
+ */
+export async function listAdminPaymentAttempts(
+  orderId: string,
+): Promise<AdminPaymentAttempt[]> {
+  const { data, error } = await supabase.rpc('admin_list_payment_attempts', {
+    p_order_id: orderId,
+    p_limit: 50,
+  });
+  if (error) throw error;
+
+  return (Array.isArray(data) ? data : [])
+    .map(mapAttempt)
+    .filter((attempt): attempt is AdminPaymentAttempt => attempt !== null);
+}
+
+function mapAttempt(value: unknown): AdminPaymentAttempt | null {
+  const row = asRow(value);
+  if (!row) return null;
+
+  const id = asText(row.id);
+  const reference = asText(row.reference);
+  if (!id || !reference) return null;
+
+  return {
+    id,
+    orderId: asText(row.order_id) ?? '',
+    provider: asText(row.provider) ?? 'paystack',
+    reference,
+    status: asText(row.status) ?? 'initialized',
+    amount: asNumber(row.amount),
+    currency: asText(row.currency) ?? 'GHS',
+    channel: asText(row.channel),
+    verifiedAt: asTimestamp(row.verified_at),
+    createdAt: asTimestamp(row.created_at) ?? '',
+  };
+}
 
 /**
  * Records a manual payment. The database sets `payment_source = 'manual'`

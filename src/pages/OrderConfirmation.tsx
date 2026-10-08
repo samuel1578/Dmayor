@@ -19,8 +19,8 @@ import { formatOrderDate, getMyOrder, type OrderDetail } from '../lib/account/or
  * so an order renders identically everywhere and always from its SNAPSHOT
  * columns. E2 adds the link through to the durable account order page.
  *
- * The wording never claims a payment: every order is created `unpaid` and there
- * is no payment provider yet.
+ * The wording never claims a payment: every order is created `unpaid`, and any
+ * later payment is verified server-side before it is shown as paid.
  */
 export function OrderConfirmation() {
   const { user } = useAuth();

@@ -29,7 +29,8 @@ type Feedback = { status: 'saved' | 'error'; message: string } | null;
  * marking an order paid never moves it to delivered, and shipping an unpaid
  * order is allowed.
  *
- * No payment provider is involved and no stock is restocked here.
+ * Payment includes verified Paystack transactions and admin-recorded manual
+ * payments. No stock is restocked here.
  */
 function statusPillClass(status: OrderStatus): string {
   if (status === 'cancelled') return 'border-ghana-red/60 text-ghana-red';
@@ -361,11 +362,11 @@ export function AdminOrderDetail() {
           {/* Payment */}
           <section className="border border-ghana-black/10 dark:border-white/10 rounded-lg p-5 sm:p-6">
             <h2 className="font-display text-xl text-ghana-black dark:text-white">
-              Payment (manual)
+              Payment
             </h2>
             <p className="mt-1 text-xs text-ghana-black/50 dark:text-white/50">
-              Recorded by hand until an automated payment provider exists. Nothing is charged from
-              here.
+              Paystack payments are verified automatically; manual records can still be entered here.
+              Nothing is charged from this page.
             </p>
 
             <p className="mt-4 text-sm text-ghana-black/80 dark:text-white/80">

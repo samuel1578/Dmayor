@@ -25,10 +25,10 @@ import {
  * Customer payment center (Phase H0.2) — the customer's own payment records,
  * derived from their own order rows and scoped by RLS to `auth.uid()`.
  *
- * Read-only: the customer cannot change a payment state. `Manual` /
- * `Not recorded` labels are shown honestly; nothing is fabricated. There is no
- * online payment provider yet — Pay Now lives on the payment detail page and is
- * informational until Phase F.
+ * Read-only: the customer cannot change a payment state. `Manual` / `Paystack`
+ * / `Not recorded` labels are shown honestly; nothing is fabricated. Starting a
+ * payment (Pay Now / Retry) lives on the payment detail page and is always
+ * verified server-side before an order becomes paid.
  *
  * Filters are applied to the already-loaded list (no extra requests).
  */

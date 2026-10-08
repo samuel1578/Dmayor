@@ -103,7 +103,7 @@ export function AdminDashboard() {
     { label: 'Refunded', value: orderStats?.refunded },
   ];
 
-  const deferred = ['Collections', 'Blog publishing', 'Automated payments & receipts'];
+  const deferred = ['Collections', 'Blog publishing', 'Automated receipts'];
 
   return (
     <div className="max-w-5xl">
@@ -183,8 +183,9 @@ export function AdminDashboard() {
         </div>
 
         <p className="mt-3 text-xs text-ghana-black/50 dark:text-white/50">
-          Counts come from real orders. Payment status is maintained manually — there is no
-          automated payment provider yet, and nothing here is a projected revenue figure.
+          Counts come from real orders. Payment status reflects both verified Paystack
+          transactions and authorised manual updates, and nothing here is a projected revenue
+          figure.
         </p>
       </div>
 
@@ -217,8 +218,8 @@ export function AdminDashboard() {
         </div>
 
         <p className="mt-3 text-xs text-ghana-black/50 dark:text-white/50">
-          Payment records are entered by hand. No payment provider is connected and nothing is
-          charged from the Admin area.
+          Paystack payments are verified automatically. Manual payment records can still be entered
+          by authorised administrators, and nothing is charged from the Admin area.
         </p>
       </div>
 

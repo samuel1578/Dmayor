@@ -124,7 +124,8 @@ export function AdminOrders() {
             Orders
           </h1>
           <p className="mt-3 text-sm text-ghana-black/60 dark:text-white/60">
-            Customer orders, newest first. Payment and fulfilment are recorded manually.
+            Customer orders, newest first. Payment includes verified Paystack transactions and
+            manual records; fulfilment is recorded manually.
             {loading && orders.length > 0 ? ' Updating…' : ''}
           </p>
         </div>

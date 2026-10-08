@@ -1,0 +1,11 @@
+# Supabase Edge Function configuration — CLI/local only. Contains NO secrets.
+
+# The Paystack webhook is called server-to-server by Paystack, which cannot send
+# a Supabase JWT. Its security boundary is the Paystack HMAC-SHA512 signature
+# verification INSIDE the function (which fails closed). JWT verification is
+# therefore disabled for THIS function only. Every other function keeps the
+# default (verify_jwt = true).
+#
+# Equivalent one-off deploy flag: `supabase functions deploy paystack-webhook --no-verify-jwt`
+[functions.paystack-webhook]
+verify_jwt = false

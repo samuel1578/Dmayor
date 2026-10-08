@@ -53,6 +53,21 @@ export interface InitializePaymentPayload {
   attemptId: string;
 }
 
+/** The safe client payload returned by reconcile-payment (Admin only). */
+export interface ReconcilePaymentPayload {
+  status: 'paid' | 'unpaid';
+  outcome: 'success' | 'already_verified' | 'failed' | 'abandoned' | 'pending';
+  orderId: string;
+  orderNumber: string;
+  reference: string;
+  amount: number;
+  currency: string;
+  channel: string | null;
+  paidAt: string | null;
+  /** The local attempt status after reconciliation. */
+  attemptStatus: string | null;
+}
+
 /** The safe client payload returned by verify-payment. */
 export interface VerifyPaymentPayload {
   /** The ORDER's payment state after verification — paid or still unpaid. */

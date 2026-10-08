@@ -21,8 +21,8 @@ const PAGE_SIZE = 50;
  * Read-only: search, payment-status and payment-source filtering run
  * server-side through `admin_list_payments`, which re-checks `is_admin()` and
  * returns a single paged slice (no N+1, no unbounded fetch). Every mutation
- * happens on the payment detail page. Paystack may show zero results until
- * Phase F — that is expected, not a bug.
+ * (manual record, or a server-side Paystack re-check) happens on the payment
+ * detail page.
  */
 function paymentPillClass(paymentStatus: OrderPaymentStatus): string {
   if (paymentStatus === 'paid') return 'border-ghana-green text-ghana-green';
@@ -113,8 +113,8 @@ export function AdminPayments() {
             Payments
           </h1>
           <p className="mt-3 text-sm text-ghana-black/60 dark:text-white/60">
-            Payment records, newest orders first. Nothing is charged from this page — a payment is
-            recorded manually.
+            Payment records, newest orders first. Paystack payments are verified automatically;
+            manual records can still be entered. Nothing is charged from this page.
             {loading && payments.length > 0 ? ' Updating…' : ''}
           </p>
         </div>
@@ -212,7 +212,7 @@ export function AdminPayments() {
         <p className="mt-10 text-sm text-ghana-black/60 dark:text-white/60">
           {hasFilters
             ? sourceFilter === 'paystack'
-              ? 'No Paystack payments yet — automated payments arrive in Phase F.'
+              ? 'No Paystack payments yet.'
               : 'No payments match these filters.'
             : 'No orders yet. Payments appear here once customers place orders.'}
         </p>

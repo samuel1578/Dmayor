@@ -8,10 +8,13 @@ import {
   PAYMENT_STATUS_OPTIONS,
   adminPaymentErrorMessage,
   getAdminPayment,
+  listAdminPaymentAttempts,
   setAdminManualPayment,
+  type AdminPaymentAttempt,
   type AdminPaymentDetail,
 } from '../../lib/admin/payments';
 import { ORDER_STATUS_LABELS } from '../../lib/admin/orders';
+import { PaymentRequestError, reconcilePaystackPayment } from '../../lib/payments/paystack';
 import type { OrderPaymentStatus } from '../../lib/supabase';
 import { formatAdminDateTime, formatCedis } from '../../lib/admin/format';
 
@@ -28,13 +31,15 @@ function paymentPillClass(paymentStatus: OrderPaymentStatus): string {
 /**
  * Admin payment detail (Phase H0.1) — one order's payment record.
  *
- * The only write path is `setAdminManualPayment`, an admin-only RPC that
- * re-checks `is_admin()`, validates server-side and hard-codes
- * `payment_source = 'manual'`. The client never sends a payment source and
- * there is deliberately no source selector.
+ * Two write paths, both admin-only and server-authoritative:
+ *   - `setAdminManualPayment` records a manual payment (hard-codes
+ *     `payment_source = 'manual'`); the client never sends a payment source.
+ *   - `reconcilePaystackPayment` asks the server to re-check the order's
+ *     Paystack attempt against Paystack. The browser sends only the order id;
+ *     the server performs all verification and the trusted finalizer decides.
  *
- * No money moves, no payment provider is contacted, and fulfilment status is
- * never touched: payment and order status remain independent.
+ * No money is charged from this page and fulfilment status is never touched:
+ * payment and order status remain independent.
  */
 export function AdminPaymentDetail() {
   const { orderId = '' } = useParams<{ orderId: string }>();
@@ -45,6 +50,8 @@ export function AdminPaymentDetail() {
 
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
+  const [attempts, setAttempts] = useState<AdminPaymentAttempt[]>([]);
+  const [reconciling, setReconciling] = useState(false);
 
   const [statusDraft, setStatusDraft] = useState<OrderPaymentStatus>('unpaid');
   const [reference, setReference] = useState('');
@@ -62,8 +69,13 @@ export function AdminPaymentDetail() {
     setLoadError(null);
 
     try {
-      const detail = await getAdminPayment(orderId);
+      const [detail, attemptRows] = await Promise.all([
+        getAdminPayment(orderId),
+        // Attempts are additive: a failure here must not break the page.
+        listAdminPaymentAttempts(orderId).catch(() => [] as AdminPaymentAttempt[]),
+      ]);
       setPayment(detail);
+      setAttempts(attemptRows);
       setStatusDraft(detail.paymentStatus);
       setReference(detail.paymentReference ?? '');
       setProvider(detail.paymentProvider ?? '');
@@ -118,6 +130,37 @@ export function AdminPaymentDetail() {
     if (!payment) return;
     if (statusDraft === 'paid' || statusDraft === 'refunded') setPendingConfirm(statusDraft);
     else void apply(statusDraft);
+  };
+
+  /** Admin re-check: the server contacts Paystack; the browser sends only the id. */
+  const runReconcile = async () => {
+    if (!payment || reconciling) return;
+
+    setReconciling(true);
+    setFeedback(null);
+
+    try {
+      const result = await reconcilePaystackPayment(payment.id);
+      await load();
+      setFeedback({
+        status: 'saved',
+        message:
+          result.status === 'paid'
+            ? `Paystack confirms payment for ${result.orderNumber}.`
+            : `Paystack has no completed payment for ${result.orderNumber} yet.`,
+      });
+    } catch (err) {
+      console.error('Re-check Paystack failed:', err);
+      setFeedback({
+        status: 'error',
+        message:
+          err instanceof PaymentRequestError
+            ? err.message
+            : 'We could not re-check this payment. Please try again.',
+      });
+    } finally {
+      setReconciling(false);
+    }
   };
 
   const backLink = (
@@ -423,6 +466,68 @@ export function AdminPaymentDetail() {
               are tracked separately.
             </p>
           </section>
+
+          {/* Phase F3 — Paystack attempts + admin reconciliation. */}
+          {attempts.length > 0 && (
+            <section className="border border-ghana-black/10 dark:border-white/10 rounded-lg p-5 sm:p-6">
+              <h2 className="font-display text-xl text-ghana-black dark:text-white">
+                Paystack
+              </h2>
+              <p className="mt-1 text-xs text-ghana-black/60 dark:text-white/60 leading-relaxed">
+                {payment.paymentSource === 'paystack'
+                  ? 'This order was verified by Paystack.'
+                  : 'Paystack attempts recorded for this order. Re-checking contacts Paystack server-side.'}
+              </p>
+
+              <ul className="mt-4 space-y-3 text-xs">
+                {attempts.map((attempt) => (
+                  <li
+                    key={attempt.id}
+                    className="border-t border-ghana-black/10 dark:border-white/10 pt-3 first:border-t-0 first:pt-0"
+                  >
+                    <div className="flex justify-between gap-4">
+                      <span className="break-all font-mono text-ghana-black/80 dark:text-white/80">
+                        {attempt.reference}
+                      </span>
+                      <span className="uppercase tracking-[0.14em] text-ghana-black/60 dark:text-white/60">
+                        {attempt.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-ghana-black/60 dark:text-white/60">
+                      {[
+                        attempt.channel,
+                        attempt.verifiedAt
+                          ? `Verified ${formatAdminDateTime(attempt.verifiedAt)}`
+                          : null,
+                        attempt.createdAt
+                          ? `Created ${formatAdminDateTime(attempt.createdAt)}`
+                          : null,
+                      ]
+                        .filter((part): part is string => Boolean(part))
+                        .join(' · ')}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+
+              {(payment.paymentStatus === 'unpaid' || payment.paymentStatus === 'failed') && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void runReconcile()}
+                    disabled={reconciling}
+                    className="mt-5 w-full px-5 py-3 rounded-lg border border-ghana-green text-ghana-green text-xs font-semibold uppercase tracking-[0.16em] transition-colors duration-200 hover:bg-ghana-green hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {reconciling ? 'Checking with Paystack…' : 'Re-check Paystack'}
+                  </button>
+                  <p className="mt-3 text-xs text-ghana-black/50 dark:text-white/50 leading-relaxed">
+                    Contacts Paystack server-side and only marks the order paid when the transaction
+                    verifies. Nothing is charged from here.
+                  </p>
+                </>
+              )}
+            </section>
+          )}
         </div>
       </div>
 
